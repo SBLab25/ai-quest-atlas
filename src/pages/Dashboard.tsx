@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Star, Shuffle, Compass, Trophy, Users } from "lucide-react";
+import { MapPin, Clock, Star, Shuffle, Compass, Trophy, Users, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Quest {
@@ -109,6 +109,14 @@ const Dashboard = () => {
               <Shuffle className="h-4 w-4 mr-2" />
               Random Quest
             </Button>
+            <Button
+              onClick={() => navigate('/profile')}
+              variant="outline"
+              className="hidden sm:flex"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
             <span className="text-sm text-muted-foreground">
               Welcome back, {user?.email?.split('@')[0] || 'Explorer'}!
             </span>
@@ -130,7 +138,7 @@ const Dashboard = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/dashboard')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Available Quests</CardTitle>
               <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -141,36 +149,36 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/badges')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
+              <CardTitle className="text-sm font-medium">Badge Gallery</CardTitle>
               <Star className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Complete quests to earn badges</p>
+              <div className="text-2xl font-bold">Explore</div>
+              <p className="text-xs text-muted-foreground">View achievements</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/profile')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Discoveries</CardTitle>
+              <CardTitle className="text-sm font-medium">Your Profile</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Start your first quest</p>
+              <div className="text-2xl font-bold">View</div>
+              <p className="text-xs text-muted-foreground">Stats & progress</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/leaderboard')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Leaderboard Rank</CardTitle>
+              <CardTitle className="text-sm font-medium">Leaderboard</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-</div>
-              <p className="text-xs text-muted-foreground">Complete quests to rank</p>
+              <div className="text-2xl font-bold">Compete</div>
+              <p className="text-xs text-muted-foreground">View rankings</p>
             </CardContent>
           </Card>
         </div>
