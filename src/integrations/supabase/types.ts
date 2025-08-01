@@ -14,7 +14,220 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      Badges: {
+        Row: {
+          description: string | null
+          icon_url: string | null
+          id: string
+          name: string
+          quest_id: string | null
+        }
+        Insert: {
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          name: string
+          quest_id?: string | null
+        }
+        Update: {
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          name?: string
+          quest_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Badges_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "Quests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          interests: string[] | null
+          location: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          interests?: string[] | null
+          location?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          interests?: string[] | null
+          location?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      Quests: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          difficulty: number | null
+          id: string
+          is_active: boolean | null
+          location: string | null
+          quest_type: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          difficulty?: number | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          quest_type?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          difficulty?: number | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          quest_type?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Quests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "Users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      Submissions: {
+        Row: {
+          description: string | null
+          geo_location: string | null
+          id: string
+          photo_url: string | null
+          quest_id: string | null
+          status: string | null
+          submitted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          description?: string | null
+          geo_location?: string | null
+          id?: string
+          photo_url?: string | null
+          quest_id?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          user_id?: string
+        }
+        Update: {
+          description?: string | null
+          geo_location?: string | null
+          id?: string
+          photo_url?: string | null
+          quest_id?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Submissions_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "Quests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "Users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      "User Badges": {
+        Row: {
+          badge_id: string | null
+          earned_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_id?: string | null
+          earned_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Update: {
+          badge_id?: string | null
+          earned_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "User Badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "Badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "User Badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "Users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      Users: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          id?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
