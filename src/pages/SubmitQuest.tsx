@@ -54,7 +54,7 @@ const SubmitQuest = () => {
           .select("id")
           .eq("quest_id", id)
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (existingSubmission) {
           toast({
