@@ -5,8 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Star, Shuffle, Compass, Trophy, Users, User } from "lucide-react";
+import { MapPin, Clock, Star, Shuffle, Compass, Trophy, Users, User, Settings, BarChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { SearchAndFilter } from "@/components/search/SearchAndFilter";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useRole } from "@/hooks/useSimpleRole";
+import { useAnalytics } from "@/hooks/useSimpleAnalytics";
 
 interface Quest {
   id: string;
@@ -23,11 +27,16 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin, isModerator } = useRole();
+  const { trackPageView } = useAnalytics();
+  const [allQuests, setAllQuests] = useState<Quest[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [featuredQuest, setFeaturedQuest] = useState<Quest | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    trackPageView('/dashboard');
+    
     const fetchQuests = async () => {
       try {
         const { data, error } = await supabase
@@ -38,6 +47,7 @@ const Dashboard = () => {
 
         if (error) throw error;
 
+        setAllQuests(data || []);
         setQuests(data || []);
         // Set first quest as featured, or random one
         if (data && data.length > 0) {
@@ -56,7 +66,11 @@ const Dashboard = () => {
     };
 
     fetchQuests();
-  }, [toast]);
+  }, [toast, trackPageView]);
+
+  const handleFilteredQuests = (filteredQuests: Quest[]) => {
+    setQuests(filteredQuests);
+  };
 
   const getDifficultyStars = (difficulty: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -100,6 +114,7 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center space-x-4">
+            <NotificationCenter />
             <Button
               onClick={handleRandomQuest}
               variant="outline"
@@ -109,6 +124,26 @@ const Dashboard = () => {
               <Shuffle className="h-4 w-4 mr-2" />
               Random Quest
             </Button>
+            {(isAdmin || isModerator) && (
+              <>
+                <Button
+                  onClick={() => navigate('/admin')}
+                  variant="outline"
+                  className="hidden sm:flex"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+                <Button
+                  onClick={() => navigate('/analytics')}
+                  variant="outline"
+                  className="hidden sm:flex"
+                >
+                  <BarChart className="h-4 w-4 mr-2" />
+                  Analytics
+                </Button>
+              </>
+            )}
             <Button
               onClick={() => navigate('/profile')}
               variant="outline"
@@ -182,6 +217,9 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Search and Filter */}
+        <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
 
         {/* Current Quests */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
