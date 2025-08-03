@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MapPin, Clock, Star, Shuffle, Compass, Trophy, Users, User, Settings, BarChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SearchAndFilter } from "@/components/search/SearchAndFilter";
@@ -14,6 +15,7 @@ import { useAnalytics } from "@/hooks/useSimpleAnalytics";
 import { QuestMap } from "@/components/quest/QuestMap";
 import { LiveActivityFeed } from "@/components/realtime/LiveActivityFeed";
 import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
+import { AppSidebar } from "@/components/navigation/AppSidebar";
 
 interface Quest {
   id: string;
@@ -36,6 +38,7 @@ const Dashboard = () => {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [featuredQuest, setFeaturedQuest] = useState<Quest | null>(null);
   const [loading, setLoading] = useState(true);
+  const [featuredQuestIndex, setFeaturedQuestIndex] = useState(0);
 
   useEffect(() => {
     trackPageView('/dashboard');
@@ -52,9 +55,9 @@ const Dashboard = () => {
 
         setAllQuests(data || []);
         setQuests(data || []);
-        // Set first quest as featured, or random one
+        // Set first quest as featured
         if (data && data.length > 0) {
-          setFeaturedQuest(data[Math.floor(Math.random() * data.length)]);
+          setFeaturedQuest(data[0]);
         }
       } catch (error) {
         console.error("Error fetching quests:", error);
@@ -70,6 +73,21 @@ const Dashboard = () => {
 
     fetchQuests();
   }, [toast, trackPageView]);
+
+  // Rotate featured quest every 30 seconds
+  useEffect(() => {
+    if (allQuests.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setFeaturedQuestIndex((prev) => {
+        const nextIndex = (prev + 1) % allQuests.length;
+        setFeaturedQuest(allQuests[nextIndex]);
+        return nextIndex;
+      });
+    }, 30000); // Change every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [allQuests]);
 
   const handleFilteredQuests = (filteredQuests: Quest[]) => {
     setQuests(filteredQuests);
@@ -105,75 +123,44 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
-              <Compass className="w-5 h-5 text-primary-foreground" />
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        
+        <div className="flex-1">
+          {/* Header */}
+          <header className="border-b bg-card">
+            <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <SidebarTrigger />
+                <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
+                  <Compass className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <span className="text-xl font-bold">Discovery Atlas</span>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <NotificationCenter />
+                <Button
+                  onClick={handleRandomQuest}
+                  variant="outline"
+                  className="hidden sm:flex"
+                  disabled={quests.length === 0}
+                >
+                  <Shuffle className="h-4 w-4 mr-2" />
+                  Random Quest
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Welcome back, {user?.email?.split('@')[0] || 'Explorer'}!
+                </span>
+                <Button variant="outline" onClick={signOut}>
+                  Sign Out
+                </Button>
+              </div>
             </div>
-            <span className="text-xl font-bold">Discovery Atlas</span>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <NotificationCenter />
-            <Button
-              onClick={handleRandomQuest}
-              variant="outline"
-              className="hidden sm:flex"
-              disabled={quests.length === 0}
-            >
-              <Shuffle className="h-4 w-4 mr-2" />
-              Random Quest
-            </Button>
-            {(isAdmin || isModerator) && (
-              <>
-                <Button
-                  onClick={() => navigate('/admin')}
-                  variant="outline"
-                  className="hidden sm:flex"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-                <Button
-                  onClick={() => navigate('/analytics')}
-                  variant="outline"
-                  className="hidden sm:flex"
-                >
-                  <BarChart className="h-4 w-4 mr-2" />
-                  Analytics
-                </Button>
-                <Button
-                  onClick={() => navigate('/advanced-analytics')}
-                  variant="outline"
-                  className="hidden sm:flex"
-                >
-                  <BarChart className="h-4 w-4 mr-2" />
-                  Advanced
-                </Button>
-              </>
-            )}
-            <Button
-              onClick={() => navigate('/profile')}
-              variant="outline"
-              className="hidden sm:flex"
-            >
-              <User className="h-4 w-4 mr-2" />
-              Profile
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Welcome back, {user?.email?.split('@')[0] || 'Explorer'}!
-            </span>
-            <Button variant="outline" onClick={signOut}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+          </header>
 
-      <div className="container mx-auto px-4 py-8">
+          <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Your Adventure Awaits</h1>
@@ -233,7 +220,7 @@ const Dashboard = () => {
         <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
 
         {/* Phase 4 Advanced Features */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8" data-section="quest-map">
           <QuestMap quests={quests} />
           <div className="space-y-6">
             <LiveActivityFeed />
@@ -347,9 +334,11 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
