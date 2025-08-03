@@ -11,6 +11,9 @@ import { SearchAndFilter } from "@/components/search/SearchAndFilter";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useRole } from "@/hooks/useSimpleRole";
 import { useAnalytics } from "@/hooks/useSimpleAnalytics";
+import { QuestMap } from "@/components/quest/QuestMap";
+import { LiveActivityFeed } from "@/components/realtime/LiveActivityFeed";
+import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
 
 interface Quest {
   id: string;
@@ -142,6 +145,14 @@ const Dashboard = () => {
                   <BarChart className="h-4 w-4 mr-2" />
                   Analytics
                 </Button>
+                <Button
+                  onClick={() => navigate('/advanced-analytics')}
+                  variant="outline"
+                  className="hidden sm:flex"
+                >
+                  <BarChart className="h-4 w-4 mr-2" />
+                  Advanced
+                </Button>
               </>
             )}
             <Button
@@ -220,6 +231,15 @@ const Dashboard = () => {
 
         {/* Search and Filter */}
         <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
+
+        {/* Phase 4 Advanced Features */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <QuestMap quests={quests} />
+          <div className="space-y-6">
+            <LiveActivityFeed />
+            <QuestRecommendations />
+          </div>
+        </div>
 
         {/* Current Quests */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
