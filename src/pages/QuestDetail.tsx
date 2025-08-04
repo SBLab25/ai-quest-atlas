@@ -49,7 +49,7 @@ const QuestDetail = () => {
             .select("id")
             .eq("quest_id", id)
             .eq("user_id", user.id)
-            .single();
+            .maybeSingle();
           
           setHasSubmitted(!!submission);
         }
