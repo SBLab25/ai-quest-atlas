@@ -17,6 +17,7 @@ import { LiveActivityFeed } from "@/components/realtime/LiveActivityFeed";
 import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { ProfileDropdown } from "@/components/navigation/ProfileDropdown";
+import { SocialMediaFeed } from "@/components/social/SocialMediaFeed";
 
 interface Quest {
   id: string;
@@ -299,6 +300,12 @@ const Dashboard = () => {
               </Card>
             </div>
           </div>
+        </div>
+
+        {/* Social Media Feed */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6">Community Feed</h2>
+          <SocialMediaFeed />
         </div>
             </div>
           </div>
