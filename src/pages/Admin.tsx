@@ -1,10 +1,12 @@
 import React from 'react';
 import { AdminPanel } from '@/components/admin/AdminPanel';
 import { useRole } from '@/hooks/useSimpleRole';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield } from 'lucide-react';
 
 const Admin = () => {
+  const { user } = useAuth();
   const { isAdmin, isModerator, loading } = useRole();
 
   if (loading) {
@@ -15,7 +17,8 @@ const Admin = () => {
     );
   }
 
-  if (!isAdmin && !isModerator) {
+  // Only allow access to the specific admin user (you)
+  if (!isAdmin || !user || user.id !== '2b5d505d-b58f-4460-b5d8-ce2cd3146809') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-96">
@@ -24,7 +27,7 @@ const Admin = () => {
               <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
               <p className="text-muted-foreground">
-                You need admin or moderator privileges to access this page.
+                This admin panel is restricted to authorized administrators only.
               </p>
             </div>
           </CardContent>
