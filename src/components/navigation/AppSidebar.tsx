@@ -58,9 +58,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-72"} collapsible="icon">
-      <SidebarTrigger className="m-3 self-end" />
-      
+    <Sidebar className={collapsed ? "w-16" : "w-56"} collapsible="icon">
       <SidebarContent className="px-2">
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground mb-2">Navigation</SidebarGroupLabel>
