@@ -16,6 +16,7 @@ import { QuestMap } from "@/components/quest/QuestMap";
 import { LiveActivityFeed } from "@/components/realtime/LiveActivityFeed";
 import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
+import { ProfileDropdown } from "@/components/navigation/ProfileDropdown";
 
 interface Quest {
   id: string;
@@ -129,34 +130,13 @@ const Dashboard = () => {
         
         <div className="flex-1">
           {/* Header */}
-          <header className="border-b bg-card">
-            <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
                 <SidebarTrigger />
-                <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
-                  <Compass className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-bold">Discovery Atlas</span>
+                <h1 className="text-2xl font-bold">Dashboard</h1>
               </div>
-              
-              <div className="flex items-center space-x-4">
-                <NotificationCenter />
-                <Button
-                  onClick={handleRandomQuest}
-                  variant="outline"
-                  className="hidden sm:flex"
-                  disabled={quests.length === 0}
-                >
-                  <Shuffle className="h-4 w-4 mr-2" />
-                  Random Quest
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Welcome back, {user?.email?.split('@')[0] || 'Explorer'}!
-                </span>
-                <Button variant="outline" onClick={signOut}>
-                  Sign Out
-                </Button>
-              </div>
+              <ProfileDropdown />
             </div>
           </header>
 
