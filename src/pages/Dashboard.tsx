@@ -147,7 +147,7 @@ const Dashboard = () => {
         {/* Main content area with sidebar */}
         <div className="flex flex-1">
           <AppSidebar />
-          <div className="flex-1">
+          <div className="flex-1 overflow-auto">
             <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="mb-8">
