@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import AllQuests from "./pages/AllQuests";
 import QuestDetail from "./pages/QuestDetail";
 import SubmitQuest from "./pages/SubmitQuest";
 import BadgeGallery from "./pages/BadgeGallery";
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/all-quests" element={<ProtectedRoute><AllQuests /></ProtectedRoute>} />
           <Route path="/quest/:id" element={<ProtectedRoute><QuestDetail /></ProtectedRoute>} />
           <Route path="/submit/:id" element={<ProtectedRoute><SubmitQuest /></ProtectedRoute>} />
           <Route path="/badges" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />

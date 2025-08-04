@@ -136,16 +136,23 @@ const Dashboard = () => {
                 <SidebarTrigger />
                 <h1 className="text-2xl font-bold">Dashboard</h1>
               </div>
-              <ProfileDropdown />
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <h2 className="text-lg font-semibold">Welcome back!</h2>
+                  <p className="text-sm text-muted-foreground">Ready for your next adventure?</p>
+                </div>
+                <NotificationCenter />
+                <ProfileDropdown />
+              </div>
             </div>
           </header>
 
           <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Your Adventure Awaits</h1>
+          <h1 className="text-3xl font-bold mb-2">Your Adventure Dashboard</h1>
           <p className="text-muted-foreground">
-            Ready to explore the world? Check out today's quests and continue your journey.
+            Explore featured quests, check the map, and discover your next adventure.
           </p>
         </div>
 
@@ -269,50 +276,27 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* All Quests List */}
+          {/* Quick Actions */}
           <div>
-            <h2 className="text-2xl font-bold mb-4">All Quests</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Available Adventures</CardTitle>
-                <CardDescription>
-                  {quests.length} quest{quests.length !== 1 ? 's' : ''} waiting for you
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                  </div>
-                ) : quests.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {quests.map((quest) => (
-                      <div
-                        key={quest.id}
-                        className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/quest/${quest.id}`)}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-medium text-sm line-clamp-1">{quest.title}</h4>
-                          <Badge 
-                            className={`${getQuestTypeColor(quest.quest_type)} text-xs`}
-                            variant="secondary"
-                          >
-                            {quest.quest_type}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1 mb-1">
-                          {getDifficultyStars(quest.difficulty)}
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{quest.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">No quests available</p>
-                )}
-              </CardContent>
-            </Card>
+            <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
+            <div className="space-y-4">
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/all-quests')}>
+                <CardHeader>
+                  <CardTitle className="text-lg">View All Quests</CardTitle>
+                  <CardDescription>
+                    Browse {quests.length} available adventures
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={handleRandomQuest}>
+                <CardHeader>
+                  <CardTitle className="text-lg">Random Quest</CardTitle>
+                  <CardDescription>
+                    Get a surprise adventure
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
           </div>
             </div>
           </div>

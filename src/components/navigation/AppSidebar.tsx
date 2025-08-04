@@ -1,4 +1,4 @@
-import { MapPin, Compass, Trophy, Users, Star, BarChart, User, Settings } from "lucide-react";
+import { MapPin, Compass, Trophy, Users, Star, BarChart, User, Settings, List } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRole } from "@/hooks/useSimpleRole";
 import {
@@ -16,6 +16,7 @@ import {
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Compass },
+  { title: "All Quests", url: "/all-quests", icon: List },
   { title: "Quest Map", url: "#quest-map", icon: MapPin, isScrollTarget: true },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Badge Gallery", url: "/badges", icon: Star },
@@ -57,22 +58,22 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarTrigger className="m-2 self-end" />
+    <Sidebar className={collapsed ? "w-16" : "w-72"} collapsible="icon">
+      <SidebarTrigger className="m-3 self-end" />
       
-      <SidebarContent>
+      <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground mb-2">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     onClick={() => handleNavigation(item)}
-                    className={isActive(item.url) ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"}
+                    className={`h-10 ${isActive(item.url) ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50"} transition-all duration-200`}
                   >
-                    <item.icon className="h-4 w-4" />
-                    {!collapsed && <span>{item.title}</span>}
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    {!collapsed && <span className="text-sm">{item.title}</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -81,18 +82,18 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {(isAdmin || isModerator) && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+          <SidebarGroup className="mt-4">
+            <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground mb-2">Admin</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="space-y-1">
                 {adminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       onClick={() => navigate(item.url)}
-                      className={isActive(item.url) ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"}
+                      className={`h-10 ${isActive(item.url) ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50"} transition-all duration-200`}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span className="text-sm">{item.title}</span>}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
