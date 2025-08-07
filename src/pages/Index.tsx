@@ -11,7 +11,7 @@ const Index = () => {
 
   const handleGetStarted = () => {
     if (user) {
-      navigate('/dashboard');
+      navigate('/home');
     } else {
       navigate('/auth');
     }

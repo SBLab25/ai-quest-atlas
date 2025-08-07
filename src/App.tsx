@@ -69,6 +69,8 @@ const App = () => (
           <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           <Route path="/advanced-analytics" element={<ProtectedRoute><AdvancedAnalytics /></ProtectedRoute>} />
           <Route path="/quest-map" element={<ProtectedRoute><QuestMapPage /></ProtectedRoute>} />
+          {/* Redirect old dashboard route to home */}
+          <Route path="/dashboard" element={<Navigate to="/home" replace />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

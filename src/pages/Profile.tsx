@@ -200,11 +200,11 @@ const Profile = () => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/home')}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back to Home
           </Button>
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
@@ -415,7 +415,7 @@ const Profile = () => {
                 <Button 
                   variant="outline" 
                   className="w-full justify-start"
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate('/home')}
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Browse Quests

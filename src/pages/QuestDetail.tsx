@@ -104,7 +104,7 @@ const QuestDetail = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Quest Not Found</h2>
           <p className="text-muted-foreground mb-4">The quest you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          <Button onClick={() => navigate("/home")}>Back to Home</Button>
         </div>
       </div>
     );
@@ -117,11 +117,11 @@ const QuestDetail = () => {
         <div className="mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/home")}
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            Back to Home
           </Button>
         </div>
 
@@ -180,7 +180,7 @@ const QuestDetail = () => {
                   )}
                   <Button
                     variant="outline"
-                    onClick={() => navigate("/dashboard")}
+                    onClick={() => navigate("/home")}
                   >
                     View All Quests
                   </Button>

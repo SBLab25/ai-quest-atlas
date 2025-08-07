@@ -200,7 +200,7 @@ const SubmitQuest = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Quest Not Found</h2>
           <p className="text-muted-foreground mb-4">The quest you're trying to submit for doesn't exist.</p>
-          <Button onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          <Button onClick={() => navigate("/home")}>Back to Home</Button>
         </div>
       </div>
     );
