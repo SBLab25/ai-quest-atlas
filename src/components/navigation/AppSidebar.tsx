@@ -17,7 +17,7 @@ import {
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Compass },
   { title: "All Quests", url: "/all-quests", icon: List },
-  { title: "Quest Map", url: "#quest-map", icon: MapPin, isScrollTarget: true },
+  { title: "Quest Map", url: "/quest-map", icon: MapPin },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Badge Gallery", url: "/badges", icon: Star },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
@@ -40,21 +40,7 @@ export function AppSidebar() {
   const isActive = (path: string) => currentPath === path;
 
   const handleNavigation = (item: typeof navigationItems[0]) => {
-    if (item.isScrollTarget) {
-      // Scroll to Quest Map section on dashboard
-      if (currentPath !== "/dashboard") {
-        navigate("/dashboard");
-        setTimeout(() => {
-          const element = document.querySelector('[data-section="quest-map"]');
-          element?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-      } else {
-        const element = document.querySelector('[data-section="quest-map"]');
-        element?.scrollIntoView({ behavior: "smooth" });
-      }
-    } else {
-      navigate(item.url);
-    }
+    navigate(item.url);
   };
 
   return (

@@ -208,13 +208,16 @@ const Dashboard = () => {
         {/* Search and Filter */}
         <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
 
+        {/* Community Feed */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6">Community Feed</h2>
+          <SocialMediaFeed />
+        </div>
+
         {/* Phase 4 Advanced Features */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8" data-section="quest-map">
-          <QuestMap quests={quests} />
-          <div className="space-y-6">
-            <LiveActivityFeed />
-            <QuestRecommendations />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <LiveActivityFeed />
+          <QuestRecommendations />
         </div>
 
         {/* Current Quests */}
@@ -302,11 +305,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Social Media Feed */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-6">Community Feed</h2>
-          <SocialMediaFeed />
-        </div>
             </div>
           </div>
         </div>
