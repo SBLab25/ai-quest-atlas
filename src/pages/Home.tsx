@@ -125,28 +125,28 @@ const Home = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex flex-col w-full bg-background">
-        {/* Header spanning full width */}
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger />
-              <h1 className="text-2xl font-bold">Home</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <h2 className="text-lg font-semibold">Welcome back!</h2>
-                <p className="text-sm text-muted-foreground">Ready for your next adventure?</p>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        
+        <div className="flex-1">
+          {/* Header */}
+          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger />
+                <h1 className="text-2xl font-bold">Home</h1>
               </div>
-              <NotificationCenter />
-              <ProfileDropdown />
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <h2 className="text-lg font-semibold">Welcome back!</h2>
+                  <p className="text-sm text-muted-foreground">Ready for your next adventure?</p>
+                </div>
+                <NotificationCenter />
+                <ProfileDropdown />
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Main content area with sidebar */}
-        <div className="flex flex-1">
-          <AppSidebar />
           <div className="flex-1 overflow-auto">
             <div className="container mx-auto px-4 py-8">
               {/* Hero Section */}
