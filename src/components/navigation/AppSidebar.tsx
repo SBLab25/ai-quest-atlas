@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Compass },
+  { title: "Home", url: "/home", icon: Compass },
   { title: "All Quests", url: "/all-quests", icon: List },
   { title: "Quest Map", url: "/quest-map", icon: MapPin },
   { title: "Profile", url: "/profile", icon: User },

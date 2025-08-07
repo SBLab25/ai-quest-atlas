@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
+import Home from "./pages/Home";
 import AllQuests from "./pages/AllQuests";
 import QuestDetail from "./pages/QuestDetail";
 import SubmitQuest from "./pages/SubmitQuest";
@@ -46,7 +46,7 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  return user ? <Navigate to="/dashboard" /> : <>{children}</>;
+  return user ? <Navigate to="/home" /> : <>{children}</>;
 };
 
 const App = () => (
@@ -58,7 +58,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/all-quests" element={<ProtectedRoute><AllQuests /></ProtectedRoute>} />
           <Route path="/quest/:id" element={<ProtectedRoute><QuestDetail /></ProtectedRoute>} />
           <Route path="/submit/:id" element={<ProtectedRoute><SubmitQuest /></ProtectedRoute>} />
