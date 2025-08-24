@@ -18,6 +18,7 @@ const navigationItems = [
   { title: "Home", url: "/home", icon: Compass },
   { title: "All Quests", url: "/all-quests", icon: List },
   { title: "Quest Map", url: "/quest-map", icon: MapPin },
+  { title: "Community", url: "/community", icon: Users },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Badge Gallery", url: "/badges", icon: Star },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
