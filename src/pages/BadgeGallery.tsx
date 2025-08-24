@@ -161,11 +161,15 @@ const BadgeGallery = () => {
                   <CardHeader className="text-center">
                     <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                       {userBadge.badge.icon_url ? (
-                        <img 
-                          src={userBadge.badge.icon_url} 
-                          alt={userBadge.badge.name}
-                          className="w-8 h-8"
-                        />
+                        userBadge.badge.icon_url.startsWith('http') ? (
+                          <img 
+                            src={userBadge.badge.icon_url} 
+                            alt={userBadge.badge.name}
+                            className="w-8 h-8"
+                          />
+                        ) : (
+                          <span className="text-3xl">{userBadge.badge.icon_url}</span>
+                        )
                       ) : (
                         <Trophy className="h-8 w-8 text-primary" />
                       )}
@@ -210,15 +214,21 @@ const BadgeGallery = () => {
                     <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-2 ${
                       isEarned ? 'bg-primary/10' : 'bg-muted'
                     }`}>
-                      {badge.icon_url ? (
-                        <img 
-                          src={badge.icon_url} 
-                          alt={badge.name}
-                          className={`w-8 h-8 ${!isEarned ? 'grayscale' : ''}`}
-                        />
-                      ) : (
-                        <Trophy className={`h-8 w-8 ${isEarned ? 'text-primary' : 'text-muted-foreground'}`} />
-                      )}
+                       {badge.icon_url ? (
+                         badge.icon_url.startsWith('http') ? (
+                           <img 
+                             src={badge.icon_url} 
+                             alt={badge.name}
+                             className={`w-8 h-8 ${!isEarned ? 'grayscale' : ''}`}
+                           />
+                         ) : (
+                           <span className={`text-3xl ${!isEarned ? 'grayscale opacity-50' : ''}`}>
+                             {badge.icon_url}
+                           </span>
+                         )
+                       ) : (
+                         <Trophy className={`h-8 w-8 ${isEarned ? 'text-primary' : 'text-muted-foreground'}`} />
+                       )}
                     </div>
                     <CardTitle className="text-lg">{badge.name}</CardTitle>
                     <CardDescription>{badge.description}</CardDescription>
