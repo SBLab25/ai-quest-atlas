@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useSimpleRole";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,12 +17,31 @@ import { User, Settings, LogOut, Shield, BarChart } from "lucide-react";
 export const ProfileDropdown = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { isAdmin, isModerator } = useRole();
+  const { isAdmin } = useRole();
+  const [profile, setProfile] = useState<{ username?: string; full_name?: string } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('username, full_name')
+        .eq('id', user.id)
+        .single();
+      
+      setProfile(data);
+    };
+
+    fetchProfile();
+  }, [user?.id]);
 
   const handleLogout = async () => {
     await signOut();
     navigate("/auth");
   };
+
+  const displayName = profile?.username || profile?.full_name || user?.email || "User";
 
   return (
     <DropdownMenu>
@@ -29,7 +49,7 @@ export const ProfileDropdown = () => {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {user?.email?.charAt(0).toUpperCase() || "U"}
+              {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -37,7 +57,7 @@ export const ProfileDropdown = () => {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <div className="flex items-center justify-start gap-2 p-2">
           <div className="flex flex-col space-y-1 leading-none">
-            <p className="font-medium">{user?.email}</p>
+            <p className="font-medium">{displayName}</p>
           </div>
         </div>
         <DropdownMenuSeparator />
@@ -50,7 +70,7 @@ export const ProfileDropdown = () => {
           Account Settings
         </DropdownMenuItem>
         
-        {(isAdmin || isModerator) && (
+        {isAdmin && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("/admin")}>
