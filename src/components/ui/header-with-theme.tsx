@@ -44,7 +44,6 @@ const HeaderWithTheme: React.FC<HeaderWithThemeProps> = ({
       
       <div className="flex items-center gap-2">
         <ThemeToggleButton 
-          variant="circle-blur"
           start="center"
         />
       </div>

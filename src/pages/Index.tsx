@@ -11,7 +11,15 @@ import CountUp from '@/components/ui/count-up'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  visible: (i: number = 0) => ({ opacity: 1, y: 0, transition: { delay: 0.08 * i, duration: 0.5, ease: 'easeOut' } }),
+  visible: (i: number = 0) => ({ 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      delay: 0.08 * i, 
+      duration: 0.5, 
+      ease: [0.4, 0, 0.2, 1] as [number, number, number, number]
+    } 
+  }),
 }
 
 const Index = () => {
