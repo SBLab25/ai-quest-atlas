@@ -66,8 +66,10 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <div className="flex-1" />
+        
         {(isAdmin || isModerator) && (
-          <SidebarGroup className="mt-4">
+          <SidebarGroup className="mt-auto">
             <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground mb-2">Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-1">
@@ -86,7 +88,6 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-
 
       </SidebarContent>
     </Sidebar>
