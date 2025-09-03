@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "next-themes";
+import { useRole } from "@/hooks/useSimpleRole";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,24 +11,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Settings, LogOut, Sun, Moon } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { User, Settings, LogOut, Shield, BarChart } from "lucide-react";
 
 export const ProfileDropdown = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { isAdmin, isModerator } = useRole();
 
   const handleLogout = async () => {
     await signOut();
     navigate("/auth");
   };
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
-  const isDark = theme === "dark";
 
   return (
     <DropdownMenu>
@@ -56,30 +49,24 @@ export const ProfileDropdown = () => {
           <Settings className="mr-2 h-4 w-4" />
           Account Settings
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <div className="flex items-center justify-between p-2">
-          <div className="flex items-center gap-2">
-            <Sun className="h-4 w-4" />
-            <span className="text-sm">Theme</span>
-            <Moon className="h-4 w-4" />
-          </div>
-          <div 
-            className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors cursor-pointer"
-            onClick={toggleTheme}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-primary transition-transform duration-200 ease-in-out ${
-                isDark ? "translate-x-6" : "translate-x-1"
-              }`}
-            >
-              {isDark ? (
-                <Moon className="h-3 w-3 text-primary-foreground m-0.5" />
-              ) : (
-                <Sun className="h-3 w-3 text-primary-foreground m-0.5" />
-              )}
-            </span>
-          </div>
-        </div>
+        
+        {(isAdmin || isModerator) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/admin")}>
+              <Shield className="mr-2 h-4 w-4" />
+              Admin Panel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/analytics")}>
+              <BarChart className="mr-2 h-4 w-4" />
+              Analytics
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/advanced-analytics")}>
+              <BarChart className="mr-2 h-4 w-4" />
+              Advanced Analytics
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
