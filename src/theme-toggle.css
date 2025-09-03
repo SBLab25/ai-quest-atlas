@@ -1,0 +1,8 @@
+.clip-animate {
+    clip-path: circle(150% at 100% 0); /* expands from top-right */
+  }
+  
+  .clip-reset {
+    clip-path: circle(0% at 100% 0); /* hidden at top-right */
+  }
+  

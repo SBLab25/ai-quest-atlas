@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Camera, MapPin } from "lucide-react";
+import { ArrowLeft, Upload, Camera, MapPin, X, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Quest {
   id: string;
@@ -21,6 +22,7 @@ const SubmitQuest = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [quest, setQuest] = useState<Quest | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +30,7 @@ const SubmitQuest = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [geoLocation, setGeoLocation] = useState("");
+  const [fileError, setFileError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -79,15 +82,51 @@ const SubmitQuest = () => {
     fetchQuest();
   }, [id, user, navigate, toast]);
 
+  const validateFile = (file: File): string | null => {
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return "File size must be less than 10MB";
+    }
+
+    // Check file type
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/quicktime', 'video/webm',
+      'application/pdf'
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      return "Please select an image (JPEG, PNG, GIF, WebP), video (MP4, MOV, WebM), or PDF file";
+    }
+
+    return null;
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      console.log('Selected file:', file.name);
+      const error = validateFile(file);
+      if (error) {
+        setFileError(error);
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        return;
+      }
+
+      setFileError(null);
       setSelectedFile(file);
       
       // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setFileError(null);
   };
 
   const getCurrentLocation = () => {
@@ -207,7 +246,7 @@ const SubmitQuest = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -224,10 +263,10 @@ const SubmitQuest = () => {
         {/* Quest Context */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-xl text-gray-900">
+            <CardTitle className="text-xl">
               Submitting for: {quest.title}
             </CardTitle>
-            <CardDescription className="text-gray-600">
+            <CardDescription>
               {quest.description}
             </CardDescription>
           </CardHeader>
@@ -248,33 +287,71 @@ const SubmitQuest = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* File Upload */}
               <div>
-                <Label htmlFor="photo">Photo/Video Evidence</Label>
+                <Label htmlFor="photo">Photo/Video/PDF Evidence</Label>
                 <div className="mt-2">
-                  <div className="flex items-center justify-center w-full">
-                    <label htmlFor="photo" className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Upload className="w-8 h-8 mb-4 text-gray-500" />
-                        <p className="mb-2 text-sm text-gray-500">
-                          <span className="font-semibold">Click to upload</span>
-                        </p>
-                        <p className="text-xs text-gray-500">PNG, JPG, MP4 (MAX. 10MB)</p>
-                      </div>
+                  {!selectedFile ? (
+                    <label
+                      className="relative block rounded-lg border-2 border-dashed p-6 text-center transition-all duration-200 ease-in-out cursor-pointer select-none border-border bg-background hover:border-primary hover:bg-accent/20"
+                    >
                       <input
                         id="photo"
                         type="file"
-                        className="hidden"
-                        accept="image/*,video/*"
+                        accept="image/*,video/*,application/pdf"
                         onChange={handleFileSelect}
+                        capture={isMobile ? "environment" : undefined}
+                        disabled={submitting}
+                        className="hidden"
                       />
+                      <div className="flex flex-col items-center justify-center space-y-3 pointer-events-none">
+                        <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-full">
+                          <Upload className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-foreground">Tap to Upload</p>
+                          <p className="text-xs text-muted-foreground">Images, videos or PDF (MAX. 10MB)</p>
+                        </div>
+                      </div>
                     </label>
-                  </div>
-                  {previewUrl && (
-                    <div className="mt-4">
-                      <img
-                        src={previewUrl}
-                        alt="Preview"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
+                  ) : (
+                    <div className="relative border-2 border-green-500/20 bg-green-500/5 rounded-lg p-4">
+                      <div className="relative w-full h-64">
+                        {selectedFile.type.startsWith('image/') ? (
+                          <img
+                            src={previewUrl!}
+                            alt="Preview"
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        ) : selectedFile.type === 'application/pdf' ? (
+                          <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                            PDF selected: {selectedFile.name}
+                          </div>
+                        ) : (
+                          <video
+                            src={previewUrl!}
+                            className="w-full h-full object-cover rounded-lg"
+                            controls
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2 h-8 w-8 p-0"
+                          onClick={removeFile}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </div>
+                    </div>
+                  )}
+                  
+                  {fileError && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {fileError}
                     </div>
                   )}
                 </div>
@@ -318,7 +395,7 @@ const SubmitQuest = () => {
               <Button
                 type="submit"
                 disabled={submitting || !description.trim()}
-                className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                className="w-full"
               >
                 {submitting ? "Submitting..." : "Submit Quest"}
               </Button>

@@ -19,6 +19,8 @@ import AdvancedAnalytics from "./pages/AdvancedAnalytics";
 import QuestMapPage from "./pages/QuestMap";
 import NotFound from "./pages/NotFound";
 import Community from "./pages/Community";
+import MobileTest from "./pages/MobileTest";
+
 
 const queryClient = new QueryClient();
 
@@ -71,6 +73,7 @@ const App = () => (
           <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           <Route path="/advanced-analytics" element={<ProtectedRoute><AdvancedAnalytics /></ProtectedRoute>} />
           <Route path="/quest-map" element={<ProtectedRoute><QuestMapPage /></ProtectedRoute>} />
+          <Route path="/mobile-test" element={<MobileTest />} />
           {/* Redirect old dashboard route to home */}
           <Route path="/dashboard" element={<Navigate to="/home" replace />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

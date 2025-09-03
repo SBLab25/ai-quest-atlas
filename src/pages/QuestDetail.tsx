@@ -111,7 +111,7 @@ const QuestDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -138,24 +138,24 @@ const QuestDetail = () => {
                     {getDifficultyStars(quest.difficulty)}
                   </div>
                 </div>
-                <CardTitle className="text-3xl font-bold text-gray-900 mb-2">
+                <CardTitle className="text-3xl font-bold mb-2">
                   {quest.title}
                 </CardTitle>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <CardDescription className="text-lg text-gray-700 mb-6 leading-relaxed">
+            <CardDescription className="text-lg mb-6 leading-relaxed">
               {quest.description}
             </CardDescription>
 
             {/* Quest Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-5 w-5" />
                 <span>{quest.location}</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="h-5 w-5" />
                 <span>Posted {new Date(quest.created_at).toLocaleDateString()}</span>
               </div>
@@ -166,14 +166,13 @@ const QuestDetail = () => {
               {user ? (
                 <>
                   {hasSubmitted ? (
-                    <Button disabled className="bg-gray-100 text-gray-500">
+                    <Button disabled variant="secondary">
                       <Users className="h-4 w-4 mr-2" />
                       Already Submitted
                     </Button>
                   ) : (
                     <Button
                       onClick={() => navigate(`/submit/${quest.id}`)}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                     >
                       Submit Your Quest
                     </Button>
@@ -200,7 +199,7 @@ const QuestDetail = () => {
             <CardTitle>Quest Tips</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc list-inside space-y-2 text-gray-700">
+            <ul className="list-disc list-inside space-y-2 text-foreground">
               <li>Take clear, high-quality photos to document your quest</li>
               <li>Include a detailed description of your experience</li>
               <li>If possible, add location information to help others</li>

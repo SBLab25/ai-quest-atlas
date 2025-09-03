@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,8 @@ import { QuestRecommendations } from "@/components/performance/QuestRecommendati
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { ProfileDropdown } from "@/components/navigation/ProfileDropdown";
 import { SocialMediaFeed } from "@/components/social/SocialMediaFeed";
+import { usePerformance } from "@/hooks/use-performance";
+import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 
 interface Quest {
   id: string;
@@ -35,6 +37,7 @@ const Home = () => {
   const { toast } = useToast();
   const { isAdmin, isModerator } = useRole();
   const { trackPageView } = useAnalytics();
+  const { throttle, debounce } = usePerformance();
   const [allQuests, setAllQuests] = useState<Quest[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [featuredQuest, setFeaturedQuest] = useState<Quest | null>(null);
@@ -90,11 +93,11 @@ const Home = () => {
     return () => clearInterval(interval);
   }, [allQuests]);
 
-  const handleFilteredQuests = (filteredQuests: Quest[]) => {
+  const handleFilteredQuests = useCallback((filteredQuests: Quest[]) => {
     setQuests(filteredQuests);
-  };
+  }, []);
 
-  const getDifficultyStars = (difficulty: number) => {
+  const getDifficultyStars = useCallback((difficulty: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
@@ -103,9 +106,9 @@ const Home = () => {
         }`}
       />
     ));
-  };
+  }, []);
 
-  const getQuestTypeColor = (type: string) => {
+  const getQuestTypeColor = useCallback((type: string) => {
     const colors = {
       photography: "bg-purple-100 text-purple-800",
       nature: "bg-green-100 text-green-800",
@@ -114,7 +117,7 @@ const Home = () => {
       community: "bg-pink-100 text-pink-800",
     };
     return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800";
-  };
+  }, []);
 
   const handleRandomQuest = () => {
     if (quests.length > 0) {
@@ -141,6 +144,7 @@ const Home = () => {
                   <h2 className="text-lg font-semibold">Welcome back!</h2>
                   <p className="text-sm text-muted-foreground">Ready for your next adventure?</p>
                 </div>
+                <ThemeToggleButton />
                 <NotificationCenter />
                 <ProfileDropdown />
               </div>

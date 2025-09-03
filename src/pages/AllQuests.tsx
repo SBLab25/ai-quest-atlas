@@ -11,6 +11,7 @@ import { useAnalytics } from "@/hooks/useSimpleAnalytics";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { ProfileDropdown } from "@/components/navigation/ProfileDropdown";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 
 interface Quest {
   id: string;
@@ -101,6 +102,7 @@ const AllQuests = () => {
                 <h1 className="text-2xl font-bold">All Quests</h1>
               </div>
               <div className="flex items-center gap-4">
+                <ThemeToggleButton/>
                 <NotificationCenter />
                 <ProfileDropdown />
               </div>
