@@ -19,6 +19,7 @@ import { ProfileDropdown } from "@/components/navigation/ProfileDropdown";
 import { SocialMediaFeed } from "@/components/social/SocialMediaFeed";
 import { usePerformance } from "@/hooks/use-performance";
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
+import { AIQuestGenerator } from "@/components/quest/AIQuestGenerator";
 
 interface Quest {
   id: string;
@@ -223,11 +224,14 @@ const Home = () => {
                   {/* Search and Filter */}
                   <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
 
-                  {/* Phase 4 Advanced Features */}
-                  <div className="space-y-6">
-                    <LiveActivityFeed />
-                    <QuestRecommendations />
-                  </div>
+                   {/* AI Generated Quests */}
+                   <AIQuestGenerator />
+
+                   {/* Phase 4 Advanced Features */}
+                   <div className="space-y-6">
+                     <LiveActivityFeed />
+                     <QuestRecommendations />
+                   </div>
 
                   {/* Featured Quest */}
                   <div>

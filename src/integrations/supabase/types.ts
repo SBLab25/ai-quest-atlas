@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generated_quests: {
+        Row: {
+          created_at: string
+          description: string
+          difficulty: number
+          generated_by: string
+          generation_prompt: string | null
+          id: string
+          is_active: boolean
+          latitude: number | null
+          location: string
+          longitude: number | null
+          quest_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          difficulty?: number
+          generated_by?: string
+          generation_prompt?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          quest_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          difficulty?: number
+          generated_by?: string
+          generation_prompt?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          quest_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       Badges: {
         Row: {
           description: string | null
@@ -203,7 +254,10 @@ export type Database = {
           full_name: string | null
           id: string
           interests: string[] | null
+          latitude: number | null
           location: string | null
+          location_last_updated: string | null
+          longitude: number | null
           updated_at: string
           username: string | null
         }
@@ -213,7 +267,10 @@ export type Database = {
           full_name?: string | null
           id: string
           interests?: string[] | null
+          latitude?: number | null
           location?: string | null
+          location_last_updated?: string | null
+          longitude?: number | null
           updated_at?: string
           username?: string | null
         }
@@ -223,7 +280,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           interests?: string[] | null
+          latitude?: number | null
           location?: string | null
+          location_last_updated?: string | null
+          longitude?: number | null
           updated_at?: string
           username?: string | null
         }
