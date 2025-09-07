@@ -16,7 +16,7 @@ import { LiveActivityFeed } from "@/components/realtime/LiveActivityFeed";
 import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { ProfileDropdown } from "@/components/navigation/ProfileDropdown";
-import { SocialMediaFeed } from "@/components/social/SocialMediaFeed";
+
 import { usePerformance } from "@/hooks/use-performance";
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 import { AIQuestGenerator } from "@/components/quest/AIQuestGenerator";
@@ -185,11 +185,34 @@ const Home = () => {
 
               {/* Main Content Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Side - Community Feed (Instagram style) */}
+                {/* Left Side - Quick Actions */}
                 <div className="order-2 lg:order-1">
-                  <h2 className="text-2xl font-bold mb-6">Community Feed</h2>
-                  <div className="max-h-[800px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-background pr-2">
-                    <SocialMediaFeed />
+                  <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
+                  <div className="space-y-4">
+                    <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/all-quests')}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">View All Quests</CardTitle>
+                        <CardDescription>
+                          Browse {quests.length} available adventures
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                    <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={handleRandomQuest}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Random Quest</CardTitle>
+                        <CardDescription>
+                          Get a surprise adventure
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                    <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/community')}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Community Hub</CardTitle>
+                        <CardDescription>
+                          Connect with other adventurers
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
                   </div>
                 </div>
 
@@ -319,28 +342,6 @@ const Home = () => {
                     )}
                   </div>
 
-                  {/* Quick Actions */}
-                  <div>
-                    <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
-                    <div className="space-y-4">
-                      <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/all-quests')}>
-                        <CardHeader>
-                          <CardTitle className="text-lg">View All Quests</CardTitle>
-                          <CardDescription>
-                            Browse {quests.length} available adventures
-                          </CardDescription>
-                        </CardHeader>
-                      </Card>
-                      <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={handleRandomQuest}>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Random Quest</CardTitle>
-                          <CardDescription>
-                            Get a surprise adventure
-                          </CardDescription>
-                        </CardHeader>
-                      </Card>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

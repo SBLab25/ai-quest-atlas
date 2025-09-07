@@ -150,6 +150,8 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          image_url: string | null
+          image_urls: string[] | null
           post_type: string
           tags: string[] | null
           title: string
@@ -160,6 +162,8 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          image_url?: string | null
+          image_urls?: string[] | null
           post_type?: string
           tags?: string[] | null
           title: string
@@ -170,6 +174,8 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          image_url?: string | null
+          image_urls?: string[] | null
           post_type?: string
           tags?: string[] | null
           title?: string
@@ -338,6 +344,7 @@ export type Database = {
           description: string | null
           geo_location: string | null
           id: string
+          image_urls: string[] | null
           photo_url: string | null
           quest_id: string | null
           status: string | null
@@ -348,6 +355,7 @@ export type Database = {
           description?: string | null
           geo_location?: string | null
           id?: string
+          image_urls?: string[] | null
           photo_url?: string | null
           quest_id?: string | null
           status?: string | null
@@ -358,6 +366,7 @@ export type Database = {
           description?: string | null
           geo_location?: string | null
           id?: string
+          image_urls?: string[] | null
           photo_url?: string | null
           quest_id?: string | null
           status?: string | null

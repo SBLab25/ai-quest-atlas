@@ -26,6 +26,7 @@ interface Post {
   id: string;
   description: string;
   photo_url: string;
+  photo_urls?: string[];
   user_id: string;
   geo_location: string;
   submitted_at: string;
@@ -73,12 +74,12 @@ export function SocialMediaFeed() {
           id,
           description,
           photo_url,
+          image_urls,
           user_id,
           geo_location,
           submitted_at
         `)
         .eq("status", "verified")
-        .not("photo_url", "is", null)
         .order("submitted_at", { ascending: false });
 
       if (submissionsError) throw submissionsError;
@@ -121,6 +122,7 @@ export function SocialMediaFeed() {
 
           return {
             ...submission,
+            photo_urls: submission.image_urls || [],
             likes_count: likes.length,
             comments_count: comments.length,
             shares_count: shares.length,
@@ -365,13 +367,42 @@ export function SocialMediaFeed() {
               </div>
             </div>
 
-            {/* Post Image */}
+            {/* Post Images */}
             <div className="aspect-square relative">
-              <img
-                src={post.photo_url}
-                alt="Quest submission"
-                className="w-full h-full object-cover"
-              />
+              {/* Use new image_urls array if available, fallback to single photo_url */}
+              {(post.photo_urls && post.photo_urls.length > 0) ? (
+                post.photo_urls.length === 1 ? (
+                  <img
+                    src={post.photo_urls[0]}
+                    alt="Quest submission"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className={`grid gap-1 h-full ${post.photo_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                    {post.photo_urls.slice(0, 3).map((url, index) => (
+                      <div key={index} className={`relative ${post.photo_urls!.length === 3 && index === 0 ? 'col-span-2' : ''}`}>
+                        <img
+                          src={url}
+                          alt={`Quest submission ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Show +N overlay for more than 3 images */}
+                        {index === 2 && post.photo_urls!.length > 3 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-semibold">+{post.photo_urls!.length - 3}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : post.photo_url && (
+                <img
+                  src={post.photo_url}
+                  alt="Quest submission"
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
 
             {/* Post Actions */}
