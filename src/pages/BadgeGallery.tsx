@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Trophy, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { addNewBadges } from '@/utils/addNewBadges';
 
 interface BadgeData {
   id: string;
@@ -33,9 +34,21 @@ const BadgeGallery = () => {
 
   useEffect(() => {
     if (user) {
-      fetchBadges();
+      initializeBadges();
     }
   }, [user]);
+
+  const initializeBadges = async () => {
+    try {
+      // First add new badges if they don't exist
+      await addNewBadges();
+    } catch (error) {
+      // Badges might already exist, which is fine
+      console.log('Badges already exist or error adding:', error);
+    }
+    // Then fetch all badges
+    await fetchBadges();
+  };
 
   const fetchBadges = async () => {
     try {

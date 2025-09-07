@@ -7,13 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, User, Trophy, MapPin, Edit3, Save, X, Calendar, Target } from 'lucide-react';
+import { ArrowLeft, User, Trophy, MapPin, Edit3, Save, X, Calendar, Target, Grid3X3, History, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { StreakDisplay } from '@/components/streak/StreakDisplay';
 import ThemeToggleButton from '@/components/ui/theme-toggle-button';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { ProfileDropdown } from '@/components/navigation/ProfileDropdown';
+import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
+import { UserPostsGrid } from '@/components/profile/UserPostsGrid';
+import { QuestHistory } from '@/components/profile/QuestHistory';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Profile {
   id: string;
@@ -49,6 +53,10 @@ const Profile = () => {
     location: '',
     interests: [] as string[],
   });
+
+  const handleAvatarUpdate = (newImageUrl: string) => {
+    setProfile(prev => prev ? { ...prev, avatar_url: newImageUrl } : null);
+  };
 
   useEffect(() => {
     if (user) {
@@ -197,24 +205,26 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10 p-4">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-8">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-8 rounded-b-xl shadow-sm">
           <div className="container mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => navigate('/home')}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:scale-105 transition-transform"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to Home
               </Button>
               <div>
-                <h1 className="text-2xl font-bold">Profile</h1>
-                <p className="text-sm text-muted-foreground">Manage your account</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  Profile
+                </h1>
+                <p className="text-sm text-muted-foreground">Manage your account & showcase your adventures</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -226,189 +236,272 @@ const Profile = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile Info */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Profile Information
-                  </CardTitle>
-                  <CardDescription>
-                    Your public profile information
-                  </CardDescription>
-                </div>
-                {!isEditing ? (
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleCancel}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={handleSave} disabled={saving}>
-                      <Save className="h-4 w-4 mr-2" />
-                      {saving ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Avatar */}
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-lg">
-                      {profile?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-lg font-semibold">{profile?.full_name || 'Anonymous User'}</h3>
-                    <p className="text-muted-foreground">@{profile?.username || 'no-username'}</p>
-                  </div>
-                </div>
-
-                {/* Form Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Username</label>
-                    {isEditing ? (
-                      <Input
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        placeholder="Enter username"
-                      />
-                    ) : (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {profile?.username || 'Not set'}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium">Full Name</label>
-                    {isEditing ? (
-                      <Input
-                        value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                        placeholder="Enter full name"
-                      />
-                    ) : (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {profile?.full_name || 'Not set'}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Location
-                  </label>
-                  {isEditing ? (
-                    <Input
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      placeholder="Enter your location"
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Profile Header */}
+          <div className="lg:col-span-4">
+            <Card className="overflow-hidden bg-gradient-to-r from-card via-card to-secondary/5 border-0 shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  {/* Profile Image */}
+                  <div className="relative group">
+                    <ProfileImageUpload
+                      currentImageUrl={profile?.avatar_url}
+                      userId={user?.id!}
+                      userName={profile?.full_name}
+                      onImageUpdate={handleAvatarUpdate}
                     />
-                  ) : (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {profile?.location || 'Not set'}
-                    </p>
-                  )}
+                  </div>
+
+                  {/* Profile Info */}
+                  <div className="flex-1 text-center md:text-left space-y-2">
+                    <h2 className="text-3xl font-bold">{profile?.full_name || 'Anonymous User'}</h2>
+                    <p className="text-muted-foreground text-lg">@{profile?.username || 'no-username'}</p>
+                    {profile?.location && (
+                      <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {profile.location}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex gap-6 text-center">
+                    <div className="space-y-1">
+                      <div className="text-2xl font-bold text-primary">{stats?.totalSubmissions || 0}</div>
+                      <div className="text-sm text-muted-foreground">Submissions</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-2xl font-bold text-primary">{stats?.completedQuests || 0}</div>
+                      <div className="text-sm text-muted-foreground">Completed</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-2xl font-bold text-primary">{stats?.totalBadges || 0}</div>
+                      <div className="text-sm text-muted-foreground">Badges</div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Interests */}
-                <div>
-                  <label className="text-sm font-medium">Interests</label>
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {formData.interests.map((interest, index) => (
-                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                            {interest}
-                            <X 
-                              className="h-3 w-3 cursor-pointer" 
-                              onClick={() => handleInterestRemove(index)}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                      <Input
-                        placeholder="Add an interest (press Enter)"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            handleInterestAdd(e.currentTarget.value);
-                            e.currentTarget.value = '';
-                          }
-                        }}
-                      />
+                {profile?.interests && profile.interests.length > 0 && (
+                  <div className="mt-6">
+                    <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                      {profile.interests.map((interest, index) => (
+                        <Badge key={index} variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                          {interest}
+                        </Badge>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {profile?.interests?.length ? (
-                        profile.interests.map((interest, index) => (
-                          <Badge key={index} variant="secondary">
-                            {interest}
-                          </Badge>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No interests added</p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Stats Sidebar */}
+          {/* Main Content Tabs */}
+          <div className="lg:col-span-3">
+            <Tabs defaultValue="posts" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+                <TabsTrigger value="posts" className="flex items-center gap-2">
+                  <Grid3X3 className="h-4 w-4" />
+                  Posts
+                </TabsTrigger>
+                <TabsTrigger value="quests" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Quest History
+                </TabsTrigger>
+                <TabsTrigger value="profile" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Edit Profile
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="posts" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Grid3X3 className="h-5 w-5 text-primary" />
+                      Community Posts
+                    </CardTitle>
+                    <CardDescription>
+                      Your shared adventures and memories
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <UserPostsGrid userId={user?.id!} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="quests" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="h-5 w-5 text-primary" />
+                      Quest History
+                    </CardTitle>
+                    <CardDescription>
+                      Track your completed adventures and achievements
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <QuestHistory userId={user?.id!} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="profile" className="space-y-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Profile Information
+                      </CardTitle>
+                      <CardDescription>
+                        Update your public profile information
+                      </CardDescription>
+                    </div>
+                    {!isEditing ? (
+                      <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="hover:scale-105 transition-transform">
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleCancel}>
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSave} disabled={saving} className="hover:scale-105 transition-transform">
+                          <Save className="h-4 w-4 mr-2" />
+                          {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+
+                    {/* Form Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Username</label>
+                        {isEditing ? (
+                          <Input
+                            value={formData.username}
+                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                            placeholder="Enter username"
+                            className="transition-all duration-200 focus:scale-[1.02]"
+                          />
+                        ) : (
+                          <p className="mt-1 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                            {profile?.username || 'Not set'}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Full Name</label>
+                        {isEditing ? (
+                          <Input
+                            value={formData.full_name}
+                            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                            placeholder="Enter full name"
+                            className="transition-all duration-200 focus:scale-[1.02]"
+                          />
+                        ) : (
+                          <p className="mt-1 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                            {profile?.full_name || 'Not set'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Location
+                      </label>
+                      {isEditing ? (
+                        <Input
+                          value={formData.location}
+                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                          placeholder="Enter your location"
+                          className="transition-all duration-200 focus:scale-[1.02]"
+                        />
+                      ) : (
+                        <p className="mt-1 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                          {profile?.location || 'Not set'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Interests */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Interests
+                      </label>
+                      {isEditing ? (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2 min-h-[2rem] p-2 border rounded-lg bg-muted/20">
+                            {formData.interests.map((interest, index) => (
+                              <Badge key={index} variant="secondary" className="flex items-center gap-1 hover:scale-105 transition-transform">
+                                {interest}
+                                <X 
+                                  className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                                  onClick={() => handleInterestRemove(index)}
+                                />
+                              </Badge>
+                            ))}
+                            {formData.interests.length === 0 && (
+                              <span className="text-sm text-muted-foreground">Add interests below...</span>
+                            )}
+                          </div>
+                          <Input
+                            placeholder="Add an interest (press Enter)"
+                            className="transition-all duration-200 focus:scale-[1.02]"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handleInterestAdd(e.currentTarget.value);
+                                e.currentTarget.value = '';
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex flex-wrap gap-2 p-2 bg-muted/20 rounded-lg min-h-[2rem]">
+                          {profile?.interests?.length ? (
+                            profile.interests.map((interest, index) => (
+                              <Badge key={index} variant="secondary" className="hover:scale-105 transition-transform">
+                                {interest}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No interests added</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Statistics */}
-            <Card>
-              <CardHeader>
+            {/* Quick Actions */}
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
                 <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5" />
-                  Statistics
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  Quick Actions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total Submissions</span>
-                  <span className="font-semibold">{stats?.totalSubmissions || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Completed Quests</span>
-                  <span className="font-semibold">{stats?.completedQuests || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Badges Earned</span>
-                  <span className="font-semibold">{stats?.totalBadges || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Member Since</span>
-                  <span className="font-semibold">
-                    {stats ? new Date(stats.joinDate).toLocaleDateString() : 'Unknown'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-2 p-4">
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start"
+                  className="w-full justify-start hover:scale-105 transition-all duration-200 hover:bg-primary/5"
                   onClick={() => navigate('/badges')}
                 >
                   <Trophy className="h-4 w-4 mr-2" />
@@ -416,7 +509,7 @@ const Profile = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start"
+                  className="w-full justify-start hover:scale-105 transition-all duration-200 hover:bg-primary/5"
                   onClick={() => navigate('/leaderboard')}
                 >
                   <Target className="h-4 w-4 mr-2" />
@@ -424,12 +517,47 @@ const Profile = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start"
+                  className="w-full justify-start hover:scale-105 transition-all duration-200 hover:bg-primary/5"
                   onClick={() => navigate('/home')}
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Browse Quests
                 </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:scale-105 transition-all duration-200 hover:bg-primary/5"
+                  onClick={() => navigate('/community')}
+                >
+                  <Grid3X3 className="h-4 w-4 mr-2" />
+                  Community Feed
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Member Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Member Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Member Since</span>
+                  <span className="font-semibold text-sm">
+                    {stats ? new Date(stats.joinDate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      year: 'numeric'
+                    }) : 'Unknown'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Total Activity</span>
+                  <span className="font-semibold text-sm">
+                    {(stats?.totalSubmissions || 0) + (stats?.totalBadges || 0)} items
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>
