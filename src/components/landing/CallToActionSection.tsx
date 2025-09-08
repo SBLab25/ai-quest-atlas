@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
-import discoveryAtlasLogo from '@/assets/discovery-atlas-logo.png'
+import DiscoveryAtlasIcon from '@/components/ui/discovery-atlas-icon'
 
 interface CallToActionSectionProps {
   onJoinAdventure: () => void
@@ -98,7 +98,7 @@ const CallToActionSection: React.FC<CallToActionSectionProps> = ({ onJoinAdventu
               className="inline-block mb-6"
             >
               <div className="w-20 h-20 bg-primary/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-primary/20">
-                <img src={discoveryAtlasLogo} alt="Discovery Atlas" className="w-12 h-12" />
+                <DiscoveryAtlasIcon className="w-12 h-12" />
               </div>
             </motion.div>
 

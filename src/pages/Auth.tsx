@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin, Star } from 'lucide-react';
 import ThemeToggleButton from '@/components/ui/theme-toggle-button';
-import discoveryAtlasLogo from '@/assets/discovery-atlas-logo.png';
+import DiscoveryAtlasIcon from '@/components/ui/discovery-atlas-icon';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -87,7 +87,7 @@ const Auth = () => {
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
-              <img src={discoveryAtlasLogo} alt="Discovery Atlas" className="w-6 h-6" />
+              <DiscoveryAtlasIcon className="w-6 h-6" />
             </div>
             <span className="text-2xl font-bold text-foreground">Discovery Atlas</span>
           </div>
@@ -111,7 +111,7 @@ const Auth = () => {
           </div>
           <div className="text-center space-y-2">
             <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto">
-              <img src={discoveryAtlasLogo} alt="Discovery Atlas" className="w-8 h-8" />
+              <DiscoveryAtlasIcon className="w-8 h-8" />
             </div>
             <p className="text-xs text-muted-foreground">Connect</p>
           </div>
