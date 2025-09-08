@@ -1,4 +1,5 @@
-import { MapPin, Compass, Trophy, Users, Star, BarChart, User, Settings, List } from "lucide-react";
+import { MapPin, Trophy, Users, Star, BarChart, User, Settings, List } from "lucide-react";
+import DiscoveryAtlasIcon from '@/components/ui/discovery-atlas-icon';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRole } from "@/hooks/useSimpleRole";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Home", url: "/home", icon: Compass },
+  { title: "Home", url: "/home", icon: DiscoveryAtlasIcon },
   { title: "All Quests", url: "/all-quests", icon: List },
   { title: "Quest Map", url: "/quest-map", icon: MapPin },
   { title: "Community", url: "/community", icon: Users },

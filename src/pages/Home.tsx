@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { MapPin, Clock, Star, Shuffle, Compass, Trophy, Users, User, Settings, BarChart } from "lucide-react";
+import { MapPin, Clock, Star, Shuffle, Trophy, Users, User, Settings, BarChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import DiscoveryAtlasIcon from '@/components/ui/discovery-atlas-icon';
 import { SearchAndFilter } from "@/components/search/SearchAndFilter";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useRole } from "@/hooks/useSimpleRole";
@@ -292,7 +293,7 @@ const Home = () => {
                           <div className="flex items-start justify-between">
                             <div>
                               <CardTitle className="flex items-center space-x-2">
-                                <Compass className="w-5 h-5 text-primary" />
+                                <DiscoveryAtlasIcon className="w-5 h-5" />
                                 <span>{featuredQuest.title}</span>
                               </CardTitle>
                               <CardDescription className="mt-2">

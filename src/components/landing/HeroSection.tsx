@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Compass, Camera, MapPin, TreePine, Building2, Sparkles, Zap } from 'lucide-react'
+import { Camera, MapPin, TreePine, Building2, Sparkles, Zap } from 'lucide-react'
+import discoveryAtlasLogo from '@/assets/discovery-atlas-logo.png'
 
 const scenes = [
   {
@@ -461,7 +462,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
               className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30"
             >
-              <Compass className="w-6 h-6 text-white" />
+              <img src={discoveryAtlasLogo} alt="Discovery Atlas" className="w-8 h-8" />
             </motion.div>
             <span className="text-2xl font-bold text-white tracking-wide">Discovery Atlas</span>
           </motion.div>
