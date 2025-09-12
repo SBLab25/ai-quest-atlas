@@ -157,6 +157,10 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
                         src={getPostImage(post)!} 
                         alt={post.title}
                         className="w-full h-full object-cover rounded-lg"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
                       />
                     </AspectRatio>
                   )}
@@ -205,6 +209,10 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
                         src={getPostImage(post)!} 
                         alt={post.title}
                         className="w-full h-full object-cover rounded-lg"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
                       />
                     </AspectRatio>
                   </div>

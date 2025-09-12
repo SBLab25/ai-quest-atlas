@@ -376,6 +376,10 @@ export function SocialMediaFeed() {
                     src={post.photo_urls[0]}
                     alt="Quest submission"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <div className={`grid gap-1 h-full ${post.photo_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
@@ -385,6 +389,10 @@ export function SocialMediaFeed() {
                           src={url}
                           alt={`Quest submission ${index + 1}`}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
                         />
                         {/* Show +N overlay for more than 3 images */}
                         {index === 2 && post.photo_urls!.length > 3 && (
@@ -401,6 +409,10 @@ export function SocialMediaFeed() {
                   src={post.photo_url}
                   alt="Quest submission"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
                 />
               )}
             </div>
