@@ -64,7 +64,7 @@ const QuestMapPage = () => {
             <div className="container mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
-                <h1 className="text-2xl font-bold">Quest Map & Nearby Adventures</h1>
+                <h1 className="text-2xl font-bold">Quest Map</h1>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
@@ -82,7 +82,7 @@ const QuestMapPage = () => {
             <div className="container mx-auto px-4 py-8">
               {/* Hero Section */}
               <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Quest Map & Nearby Adventures</h1>
+                <h1 className="text-3xl font-bold mb-2">Quest Map</h1>
                 <p className="text-muted-foreground">
                   Discover exciting quests in your area and plan your next adventure.
                 </p>

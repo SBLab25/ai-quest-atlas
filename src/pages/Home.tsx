@@ -159,7 +159,7 @@ const Home = () => {
             <div className="container mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
-                <h1 className="text-2xl font-bold">Home</h1>
+                <h1 className="text-2xl font-bold">Camp</h1>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
@@ -178,7 +178,7 @@ const Home = () => {
             <div className="container mx-auto px-4 py-8">
               {/* Hero Section */}
               <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Your Adventure Home</h1>
+                <h1 className="text-3xl font-bold mb-2">Your Adventure Camp</h1>
                 <p className="text-muted-foreground">
                   Explore featured quests, connect with the community, and discover your next adventure.
                 </p>

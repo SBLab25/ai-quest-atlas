@@ -497,7 +497,7 @@ const Community = () => {
             <div className="container mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
-                <h1 className="text-2xl font-bold">Community</h1>
+                <h1 className="text-2xl font-bold">Crew</h1>
               </div>
               <div className="flex items-center gap-4">
                 <ThemeToggleButton />
@@ -514,7 +514,7 @@ const Community = () => {
               <div className="px-4 relative">
                 <div className="flex items-center justify-between mb-6 pt-6">
                   <div>
-                    <h2 className="text-2xl font-bold">Community</h2>
+                    <h2 className="text-2xl font-bold">Crew</h2>
                     <p className="text-muted-foreground">Share achievements, connect with fellow adventurers</p>
                   </div>
                 </div>
@@ -732,6 +732,10 @@ const Community = () => {
                                       src={post.image_urls[0]}
                                       alt="Post image"
                                       className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
                                     />
                                   ) : (
                                     <div className={`grid gap-1 h-full ${post.image_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
@@ -741,6 +745,10 @@ const Community = () => {
                                             src={url}
                                             alt={`Post image ${index + 1}`}
                                             className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              const target = e.target as HTMLImageElement;
+                                              target.style.display = 'none';
+                                            }}
                                           />
                                           {index === 2 && post.image_urls!.length > 3 && (
                                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -896,6 +904,10 @@ const Community = () => {
                                       src={post.image_urls[0]}
                                       alt="Post image"
                                       className="max-w-full max-h-[600px] object-contain"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
                                     />
                                   ) : (
                                     <div className="grid gap-1 w-full h-full max-h-[600px]">
@@ -905,6 +917,10 @@ const Community = () => {
                                           src={url}
                                           alt={`Post image ${index + 1}`}
                                           className="w-full h-full object-contain"
+                                          onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.style.display = 'none';
+                                          }}
                                         />
                                       ))}
                                     </div>

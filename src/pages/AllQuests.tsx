@@ -115,7 +115,7 @@ const AllQuests = () => {
             <div className="container mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
-                <h1 className="text-2xl font-bold">All Quests</h1>
+                <h1 className="text-2xl font-bold">Quests</h1>
               </div>
               <div className="flex items-center gap-4">
                 <ThemeToggleButton/>
@@ -129,7 +129,7 @@ const AllQuests = () => {
           <div className="container mx-auto px-4 py-8">
             {/* Hero Section */}
             <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Explore All Adventures</h1>
+              <h1 className="text-3xl font-bold mb-2">Explore All Quests</h1>
               <p className="text-muted-foreground">
                 Discover community quests, AI-generated adventures, and personalized recommendations.
               </p>

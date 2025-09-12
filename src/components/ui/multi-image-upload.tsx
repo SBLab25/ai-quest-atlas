@@ -149,6 +149,11 @@ export const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
                     src={url} 
                     alt={`Upload ${index + 1}`} 
                     className="w-full h-32 object-cover rounded-md"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjOTk5OTk5Ii8+Cjwvc3ZnPgo=';
+                      target.alt = 'Failed to load image';
+                    }}
                   />
                   <Button
                     variant="destructive"
