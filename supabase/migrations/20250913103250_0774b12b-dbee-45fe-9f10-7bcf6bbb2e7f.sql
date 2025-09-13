@@ -1,0 +1,1 @@
+DELETE FROM community_posts WHERE id = 'f5257b1a-a4be-4433-a805-fab3e05b46b6';

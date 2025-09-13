@@ -64,9 +64,9 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
 
       console.log('Attempting to upload file:', fileName, 'to path:', filePath);
 
-      // Upload the file directly
+      // Upload the file directly to avatars bucket
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('user-uploads')
+        .from('avatars')
         .upload(filePath, selectedFile, {
           cacheControl: '3600',
           upsert: false
@@ -81,7 +81,7 @@ export const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
 
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('user-uploads')
+        .from('avatars')
         .getPublicUrl(filePath);
 
       console.log('Generated public URL:', publicUrl);
