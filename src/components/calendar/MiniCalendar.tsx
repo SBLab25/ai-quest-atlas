@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Clock } from "lucide-react";
+import { CalendarIcon, Clock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuestCalendar } from "@/hooks/useQuestCalendar";
 
 export const MiniCalendar = () => {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const { isQuestCompletionDate, getQuestCountForDate, loading } = useQuestCalendar();
 
   // Mock upcoming events
   const upcomingEvents = [
@@ -55,6 +57,12 @@ export const MiniCalendar = () => {
             selected={date}
             onSelect={setDate}
             className={cn("w-full p-0 pointer-events-auto")}
+            modifiers={{
+              questCompleted: (day) => !loading && isQuestCompletionDate(day)
+            }}
+            modifiersClassNames={{
+              questCompleted: "relative bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 font-semibold after:content-[''] after:absolute after:top-1 after:right-1 after:w-1.5 after:h-1.5 after:bg-green-500 after:rounded-full"
+            }}
             classNames={{
               months: "space-y-0",
               month: "space-y-2",
@@ -76,6 +84,12 @@ export const MiniCalendar = () => {
               day_disabled: "text-muted-foreground opacity-50",
             }}
           />
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>Quest completed</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

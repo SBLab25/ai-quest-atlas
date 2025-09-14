@@ -46,11 +46,15 @@ export const RecalculateAllPoints: React.FC = () => {
           <div className="text-sm text-muted-foreground">
             <p>This will recalculate points for all users based on:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>Daily page visits: +1 point per unique active day</li>
+              <li>Daily visits: +1 point per active day + bonus points for engagement</li>
               <li>Quest completions: +10 points per approved submission</li>
-              <li>Exercise quota: +5 points per active day</li>
+              <li>Exercise quota: +5 points per active day (minimum) + engagement bonus</li>
               <li>Streak bonuses: +10 for 10+ days, +50 for 30+ days</li>
+              <li>Activity bonus: Extra points based on total submission volume</li>
             </ul>
+            <p className="mt-2 text-xs text-yellow-600">
+              <strong>Note:</strong> The new system is more generous and rewards user engagement better.
+            </p>
           </div>
           
           <Button 

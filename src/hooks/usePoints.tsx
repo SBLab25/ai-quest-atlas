@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStreak } from '@/hooks/useStreak';
+import { isNewDayInIST, getISTDateString } from '@/utils/timezoneUtils';
 
 interface PointsData {
   total_points: number;
@@ -63,9 +64,9 @@ export const usePoints = () => {
   const addDailyVisitPoints = () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getISTDateString();
     
-    if (points.last_visit_date === today) return; // Already awarded today
+    if (!isNewDayInIST(points.last_visit_date)) return; // Already awarded today in IST
 
     const newPoints = {
       ...points,
@@ -84,7 +85,7 @@ export const usePoints = () => {
       ...points,
       quest_completion_points: points.quest_completion_points + 10,
       total_points: points.total_points + 10,
-      last_quest_date: new Date().toISOString().split('T')[0],
+      last_quest_date: getISTDateString(),
     };
 
     savePoints(newPoints);
@@ -93,9 +94,9 @@ export const usePoints = () => {
   const addExerciseQuotaPoints = () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getISTDateString();
     
-    if (points.last_exercise_date === today) return; // Already awarded today
+    if (!isNewDayInIST(points.last_exercise_date)) return; // Already awarded today in IST
 
     const newPoints = {
       ...points,

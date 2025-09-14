@@ -18,7 +18,7 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
       .from('Submissions')
       .select('submitted_at, status')
       .eq('user_id', userId)
-      .eq('status', 'approved');
+      .neq('status', 'rejected'); // Include pending and approved submissions
 
     if (submissionsError) {
       console.error('Error fetching submissions:', submissionsError);
@@ -26,14 +26,19 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
 
     // Group submissions by date to count daily completions
     const submissionsByDate = new Map<string, number>();
-    let totalQuestCompletions = 0;
+    let approvedSubmissions = 0;
+    let totalSubmissions = 0;
     let lastQuestDate: string | null = null;
 
     if (submissions) {
       submissions.forEach(submission => {
         const date = new Date(submission.submitted_at || '').toISOString().split('T')[0];
         submissionsByDate.set(date, (submissionsByDate.get(date) || 0) + 1);
-        totalQuestCompletions++;
+        totalSubmissions++;
+        
+          if (submission.status === 'verified') {
+            approvedSubmissions++;
+          }
         
         if (!lastQuestDate || date > lastQuestDate) {
           lastQuestDate = date;
@@ -41,19 +46,20 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
       });
     }
 
-    // Calculate daily visit points (estimate based on submission activity)
-    // This is an approximation since we don't track actual daily visits
+    // More generous daily visit points calculation
+    // Give points for each unique day they submitted + bonus days for active users
     const uniqueActiveDays = submissionsByDate.size;
+    const bonusDailyVisits = Math.floor(totalSubmissions / 2); // Bonus visits estimated from activity level
+    const dailyVisitPoints = uniqueActiveDays + bonusDailyVisits;
     
-    // Calculate quest completion points (10 points per approved submission)
-    const questCompletionPoints = totalQuestCompletions * 10;
+    // Calculate quest completion points (10 points per verified submission)
+    const questCompletionPoints = approvedSubmissions * 10;
 
-    // Calculate exercise quota points (estimate 5 points per active day)
-    // This is an approximation - in reality you'd track actual exercise activities
-    const exerciseQuotaPoints = uniqueActiveDays * 5;
+    // More generous exercise quota points 
+    // Give points for active engagement - users who submit more get more exercise points
+    const exerciseQuotaPoints = Math.max(uniqueActiveDays * 5, totalSubmissions * 3);
 
     // Calculate streak bonus points
-    // For now, we'll use the current streak value from the streak system
     const currentStreak = await getCurrentStreak(userId);
     let streakBonusPoints = 0;
     
@@ -63,23 +69,25 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
       streakBonusPoints = 10; // 10+ days streak
     }
 
-    // Calculate total points
-    const totalPoints = uniqueActiveDays + questCompletionPoints + exerciseQuotaPoints + streakBonusPoints;
+    // Calculate total points with more generous formula
+    const totalPoints = dailyVisitPoints + questCompletionPoints + exerciseQuotaPoints + streakBonusPoints;
 
     const calculatedPoints: PointsData = {
       total_points: totalPoints,
-      daily_visit_points: uniqueActiveDays,
+      daily_visit_points: dailyVisitPoints,
       quest_completion_points: questCompletionPoints,
       exercise_quota_points: exerciseQuotaPoints,
       streak_bonus_points: streakBonusPoints,
-      last_visit_date: lastQuestDate, // Approximation based on last activity
+      last_visit_date: lastQuestDate,
       last_quest_date: lastQuestDate,
-      last_exercise_date: lastQuestDate, // Approximation
+      last_exercise_date: lastQuestDate,
     };
 
     // Save to localStorage
     const storageKey = `user_points_${userId}`;
     localStorage.setItem(storageKey, JSON.stringify(calculatedPoints));
+
+    console.log(`Recalculated points for user ${userId}:`, calculatedPoints);
 
     return calculatedPoints;
 

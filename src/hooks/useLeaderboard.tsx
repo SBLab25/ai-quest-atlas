@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { recalculateUserPoints } from "@/utils/recalculateUserPoints";
 
 export interface LeaderboardUser {
   id: string;
@@ -26,51 +27,72 @@ export const useLeaderboard = () => {
     try {
       setLoading(true);
 
-      // Get users with their badge and submission counts
+      // Get all users who have submissions (active users)
       const { data: users, error: usersError } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url");
 
       if (usersError) throw usersError;
 
-      // Get badge counts for each user
-      const { data: badgeCounts, error: badgeError } = await supabase
-        .from("User Badges")
-        .select("user_id");
-
-      if (badgeError) throw badgeError;
-
-      // Get submission counts for each user (excluding rejected ones)
-      const { data: submissionCounts, error: submissionError } = await supabase
-        .from("Submissions")
-        .select("user_id, status")
-        .neq("status", "rejected");
-
-      if (submissionError) throw submissionError;
-
-      // Calculate scores and build leaderboard
-      const leaderboardData: LeaderboardUser[] = (users || []).map((user) => {
-        const badges = badgeCounts?.filter(b => b.user_id === user.id).length || 0;
-        const submissions = submissionCounts?.filter(s => s.user_id === user.id).length || 0;
-        
-        // Score calculation: badges worth 10 points, submissions worth 2 points
-        const score = badges * 10 + submissions * 2;
-        
-        return {
-          id: user.id,
-          username: user.full_name || 'Anonymous',
-          avatar_url: user.avatar_url,
-          total_badges: badges,
-          total_submissions: submissions,
-          score,
-          rank: 0 // Will be set below
-        };
+      // Calculate points for each user using the same system as treasure tab
+      const leaderboardPromises = (users || []).map(async (user) => {
+        try {
+          // First try to get existing points from localStorage
+          const storageKey = `user_points_${user.id}`;
+          let userPoints;
+          
+          try {
+            const stored = localStorage.getItem(storageKey);
+            if (stored) {
+              userPoints = JSON.parse(stored);
+            }
+          } catch (e) {
+            console.log(`No stored points for user ${user.id}, recalculating...`);
+          }
+          
+          // If no stored points, recalculate
+          if (!userPoints) {
+            userPoints = await recalculateUserPoints(user.id);
+          }
+          
+          // Get badge and submission counts for display
+          const [badgeCountResult, submissionCountResult] = await Promise.all([
+            supabase.from("User Badges").select("user_id").eq("user_id", user.id),
+            supabase.from("Submissions").select("user_id, status").eq("user_id", user.id).eq("status", "verified")
+          ]);
+          
+          const badges = badgeCountResult.data?.length || 0;
+          const submissions = submissionCountResult.data?.length || 0;
+          
+          return {
+            id: user.id,
+            username: user.full_name || 'Anonymous',
+            avatar_url: user.avatar_url,
+            total_badges: badges,
+            total_submissions: submissions,
+            score: userPoints.total_points || 0,
+            rank: 0
+          };
+        } catch (error) {
+          console.error(`Error calculating points for user ${user.id}:`, error);
+          return {
+            id: user.id,
+            username: user.full_name || 'Anonymous',
+            avatar_url: user.avatar_url,
+            total_badges: 0,
+            total_submissions: 0,
+            score: 0,
+            rank: 0
+          };
+        }
       });
+
+      const leaderboardData = await Promise.all(leaderboardPromises);
 
       // Sort by score and assign ranks
       leaderboardData.sort((a, b) => b.score - a.score);
-      leaderboardData.forEach((user, index) => {
-        user.rank = index + 1;
+      leaderboardData.forEach((u, index) => {
+        u.rank = index + 1;
       });
 
       setLeaderboard(leaderboardData);

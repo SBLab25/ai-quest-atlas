@@ -168,6 +168,11 @@ export const AdminPanel = () => {
 
   const createQuest = async () => {
     try {
+      if (!newQuest.title.trim() || !newQuest.description.trim() || !newQuest.quest_type || !newQuest.location.trim()) {
+        toast({ title: 'Missing info', description: 'Please fill all required fields (title, description, type, location).', variant: 'destructive' });
+        return;
+      }
+
       const { error } = await supabase.from('Quests').insert([newQuest]);
       if (error) throw error;
 
@@ -181,11 +186,11 @@ export const AdminPanel = () => {
         is_active: true
       });
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating quest:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to create quest',
+        title: 'Creation failed',
+        description: error?.message || 'Failed to create quest. Ensure your account has admin permissions and RLS policies allow inserts.',
         variant: 'destructive'
       });
     }
@@ -195,9 +200,21 @@ export const AdminPanel = () => {
     if (!editingQuest) return;
 
     try {
+      if (!editingQuest.title.trim() || !editingQuest.description.trim() || !editingQuest.quest_type || !editingQuest.location.trim()) {
+        toast({ title: 'Missing info', description: 'Please fill all required fields (title, description, type, location).', variant: 'destructive' });
+        return;
+      }
+
       const { error } = await supabase
         .from('Quests')
-        .update(editingQuest)
+        .update({
+          title: editingQuest.title,
+          description: editingQuest.description,
+          quest_type: editingQuest.quest_type,
+          difficulty: editingQuest.difficulty,
+          location: editingQuest.location,
+          is_active: editingQuest.is_active
+        })
         .eq('id', editingQuest.id);
 
       if (error) throw error;
@@ -205,11 +222,11 @@ export const AdminPanel = () => {
       toast({ title: 'Success', description: 'Quest updated successfully' });
       setEditingQuest(null);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating quest:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to update quest',
+        title: 'Update failed',
+        description: error?.message || 'Failed to update quest. Ensure your account has admin permissions and RLS policies allow updates.',
         variant: 'destructive'
       });
     }
@@ -400,11 +417,14 @@ export const AdminPanel = () => {
                           value={newQuest.description}
                           onChange={(e) => setNewQuest({ ...newQuest, description: e.target.value })}
                         />
-                        <Select value={newQuest.quest_type} onValueChange={(value) => setNewQuest({ ...newQuest, quest_type: value })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Quest type" />
+                        <Select 
+                          value={newQuest.quest_type || ""} 
+                          onValueChange={(value) => setNewQuest({ ...newQuest, quest_type: value })}
+                        >
+                          <SelectTrigger className="z-50">
+                            <SelectValue placeholder="Select quest type" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="z-[100] bg-popover border shadow-lg">
                             <SelectItem value="photography">Photography</SelectItem>
                             <SelectItem value="nature">Nature</SelectItem>
                             <SelectItem value="history">History</SelectItem>
@@ -417,11 +437,14 @@ export const AdminPanel = () => {
                           value={newQuest.location}
                           onChange={(e) => setNewQuest({ ...newQuest, location: e.target.value })}
                         />
-                        <Select value={newQuest.difficulty.toString()} onValueChange={(value) => setNewQuest({ ...newQuest, difficulty: parseInt(value) })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Difficulty" />
+                        <Select 
+                          value={newQuest.difficulty?.toString() || "1"} 
+                          onValueChange={(value) => setNewQuest({ ...newQuest, difficulty: parseInt(value) })}
+                        >
+                          <SelectTrigger className="z-50">
+                            <SelectValue placeholder="Select difficulty" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="z-[100] bg-popover border shadow-lg">
                             <SelectItem value="1">1 Star</SelectItem>
                             <SelectItem value="2">2 Stars</SelectItem>
                             <SelectItem value="3">3 Stars</SelectItem>
@@ -782,7 +805,7 @@ export const AdminPanel = () => {
         {/* Edit Quest Dialog */}
         {editingQuest && (
           <Dialog open={!!editingQuest} onOpenChange={() => setEditingQuest(null)}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md z-[100]">
               <DialogHeader>
                 <DialogTitle>Edit Quest</DialogTitle>
                 <DialogDescription>Update quest details</DialogDescription>
@@ -790,19 +813,22 @@ export const AdminPanel = () => {
               <div className="space-y-4">
                 <Input
                   placeholder="Quest title"
-                  value={editingQuest.title}
+                  value={editingQuest.title || ""}
                   onChange={(e) => setEditingQuest({ ...editingQuest, title: e.target.value })}
                 />
                 <Textarea
                   placeholder="Quest description"
-                  value={editingQuest.description}
+                  value={editingQuest.description || ""}
                   onChange={(e) => setEditingQuest({ ...editingQuest, description: e.target.value })}
                 />
-                <Select value={editingQuest.quest_type} onValueChange={(value) => setEditingQuest({ ...editingQuest, quest_type: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Quest type" />
+                <Select 
+                  value={editingQuest.quest_type || ""} 
+                  onValueChange={(value) => setEditingQuest({ ...editingQuest, quest_type: value })}
+                >
+                  <SelectTrigger className="z-50">
+                    <SelectValue placeholder="Select quest type" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[100] bg-popover border shadow-lg">
                     <SelectItem value="photography">Photography</SelectItem>
                     <SelectItem value="nature">Nature</SelectItem>
                     <SelectItem value="history">History</SelectItem>
@@ -812,34 +838,37 @@ export const AdminPanel = () => {
                 </Select>
                 <Input
                   placeholder="Location"
-                  value={editingQuest.location}
+                  value={editingQuest.location || ""}
                   onChange={(e) => setEditingQuest({ ...editingQuest, location: e.target.value })}
                 />
-                 <Select value={editingQuest.difficulty.toString()} onValueChange={(value) => setEditingQuest({ ...editingQuest, difficulty: parseInt(value) })}>
-                   <SelectTrigger>
-                     <SelectValue placeholder="Difficulty" />
-                   </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="1">1 Star</SelectItem>
-                     <SelectItem value="2">2 Stars</SelectItem>
-                     <SelectItem value="3">3 Stars</SelectItem>
-                     <SelectItem value="4">4 Stars</SelectItem>
-                     <SelectItem value="5">5 Stars</SelectItem>
-                   </SelectContent>
-                 </Select>
-                 <div className="flex items-center gap-2">
-                   <input
-                     type="checkbox"
-                     id="quest-active"
-                     checked={editingQuest.is_active}
-                     onChange={(e) => setEditingQuest({ ...editingQuest, is_active: e.target.checked })}
-                     className="rounded"
-                   />
-                   <label htmlFor="quest-active" className="text-sm font-medium">
-                     Quest is active
-                   </label>
-                 </div>
-                 <Button onClick={updateQuest} className="w-full">Update Quest</Button>
+                <Select 
+                  value={editingQuest.difficulty?.toString() || "1"} 
+                  onValueChange={(value) => setEditingQuest({ ...editingQuest, difficulty: parseInt(value) })}
+                >
+                  <SelectTrigger className="z-50">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100] bg-popover border shadow-lg">
+                    <SelectItem value="1">1 Star</SelectItem>
+                    <SelectItem value="2">2 Stars</SelectItem>
+                    <SelectItem value="3">3 Stars</SelectItem>
+                    <SelectItem value="4">4 Stars</SelectItem>
+                    <SelectItem value="5">5 Stars</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="quest-active"
+                    checked={editingQuest.is_active || false}
+                    onChange={(e) => setEditingQuest({ ...editingQuest, is_active: e.target.checked })}
+                    className="rounded h-4 w-4"
+                  />
+                  <label htmlFor="quest-active" className="text-sm font-medium">
+                    Quest is active
+                  </label>
+                </div>
+                <Button onClick={updateQuest} className="w-full">Update Quest</Button>
               </div>
             </DialogContent>
           </Dialog>

@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Trophy, Medal, Crown, Star, TrendingUp, Zap, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
 import { TopNavbar } from '@/components/navigation/TopNavbar';
+import { useLeaderboard, LeaderboardUser } from '@/hooks/useLeaderboard';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -25,88 +24,11 @@ interface LeaderboardEntry {
 const Leaderboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'month' | 'week'>('all');
+  const { leaderboard: lbData, userRank: userRankNumber, loading, refetch } = useLeaderboard();
+  const currentUserEntry: LeaderboardUser | null = lbData.find((e) => e.id === user?.id) || null;
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [selectedPeriod]);
+  // Using shared leaderboard hook to ensure identical scoring with the Treasure/Crew points
 
-  const fetchLeaderboard = async () => {
-    try {
-      setLoading(true);
-      
-      // Get users with their badge and submission counts
-      const { data: users, error: usersError } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url");
-
-      if (usersError) throw usersError;
-
-      // Get badge counts for each user
-      const { data: badgeCounts, error: badgeError } = await supabase
-        .from("User Badges")
-        .select("user_id");
-
-      if (badgeError) throw badgeError;
-
-      // Get submission counts for each user (excluding rejected ones)
-      const { data: submissionCounts, error: submissionError } = await supabase
-        .from("Submissions")
-        .select("user_id, status")
-        .neq("status", "rejected");
-
-      if (submissionError) throw submissionError;
-
-      // Calculate scores and build leaderboard
-      const leaderboardData: LeaderboardEntry[] = (users || []).map((user) => {
-        const badges = badgeCounts?.filter(b => b.user_id === user.id).length || 0;
-        const submissions = submissionCounts?.filter(s => s.user_id === user.id).length || 0;
-        
-        // Score calculation: badges worth 10 points, submissions worth 2 points
-        const score = badges * 10 + submissions * 2;
-        
-        return {
-          user_id: user.id,
-          username: user.full_name || 'Anonymous',
-          full_name: user.full_name || 'Anonymous',
-          avatar_url: user.avatar_url || '',
-          total_submissions: submissions,
-          verified_submissions: submissions, // All submissions are considered verified for now
-          total_badges: badges,
-          score,
-          rank: 0 // Will be set below
-        };
-      });
-
-      // Sort by score and assign ranks to ALL users
-      const sortedData = leaderboardData.sort((a, b) => b.score - a.score);
-      sortedData.forEach((user, index) => {
-        user.rank = index + 1;
-      });
-
-      // Set leaderboard to top 50 for display
-      setLeaderboard(sortedData.slice(0, 50));
-
-      // Find current user's rank from ALL users, not just top 50
-      if (user) {
-        const currentUserData = sortedData.find(u => u.user_id === user.id);
-        setUserRank(currentUserData || null);
-      }
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load leaderboard.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -171,7 +93,7 @@ const Leaderboard = () => {
                   <Trophy className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{leaderboard.length}</p>
+                  <p className="text-2xl font-bold">{lbData.length}</p>
                   <p className="text-sm text-muted-foreground">Active Competitors</p>
                 </div>
               </div>
@@ -185,7 +107,7 @@ const Leaderboard = () => {
                   <Zap className="h-6 w-6 text-secondary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{userRank?.score || 0}</p>
+                  <p className="text-2xl font-bold">{currentUserEntry?.score || 0}</p>
                   <p className="text-sm text-muted-foreground">Your Score</p>
                 </div>
               </div>
@@ -199,7 +121,7 @@ const Leaderboard = () => {
                   <Target className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">#{userRank?.rank || '?'}</p>
+                  <p className="text-2xl font-bold">#{userRankNumber || '?'}</p>
                   <p className="text-sm text-muted-foreground">Your Rank</p>
                 </div>
               </div>
@@ -207,8 +129,7 @@ const Leaderboard = () => {
           </Card>
         </div>
 
-        {/* User's Current Rank */}
-        {userRank && (
+        {currentUserEntry && (
           <Card className="mb-8 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -219,33 +140,33 @@ const Leaderboard = () => {
             <CardContent>
               <div className="flex items-center gap-4">
                 <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20">
-                  {getRankIcon(userRank.rank)}
+                  {getRankIcon(userRankNumber || 0)}
                 </div>
                 <Avatar className="h-16 w-16 border-2 border-primary/20">
-                  <AvatarImage src={userRank.avatar_url} />
+                  <AvatarImage src={currentUserEntry.avatar_url || ''} />
                   <AvatarFallback className="text-lg font-semibold">
-                    {userRank.full_name?.charAt(0) || userRank.username?.charAt(0)?.toUpperCase()}
+                    {currentUserEntry.username?.charAt(0)?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-xl font-semibold">
-                      {userRank.full_name || userRank.username || 'Anonymous'}
+                      {currentUserEntry.username || 'Anonymous'}
                     </h3>
-                    {getRankBadge(userRank.rank)}
+                    {getRankBadge(userRankNumber || 0)}
                   </div>
                   <div className="flex items-center gap-6 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{userRank.score} points</span>
+                      <span className="font-medium">{currentUserEntry.score} points</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Trophy className="h-4 w-4 text-secondary" />
-                      <span>{userRank.verified_submissions} quests</span>
+                      <span>{currentUserEntry.total_submissions} quests</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Medal className="h-4 w-4 text-accent" />
-                      <span>{userRank.total_badges} badges</span>
+                      <span>{currentUserEntry.total_badges} badges</span>
                     </div>
                   </div>
                 </div>
@@ -255,7 +176,7 @@ const Leaderboard = () => {
         )}
 
         {/* Top 3 Podium */}
-        {leaderboard.length >= 3 && (
+        {lbData.length >= 3 && (
           <div className="mb-12">
             <h2 className="text-2xl font-semibold mb-8 text-center bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Hall of Fame
@@ -268,9 +189,9 @@ const Leaderboard = () => {
                     <div className="relative mb-4">
                       <div className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-full flex items-center justify-center">
                         <Avatar className="h-16 w-16 border-2 border-gray-300 dark:border-gray-600">
-                          <AvatarImage src={leaderboard[1].avatar_url} />
+                          <AvatarImage src={lbData[1].avatar_url || ''} />
                           <AvatarFallback className="text-lg font-semibold">
-                            {leaderboard[1].full_name?.charAt(0) || leaderboard[1].username?.charAt(0)?.toUpperCase()}
+                            {lbData[1].username?.charAt(0)?.toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       </div>
@@ -279,11 +200,11 @@ const Leaderboard = () => {
                       </div>
                     </div>
                     <h3 className="font-semibold text-lg mb-1 truncate">
-                      {leaderboard[1].full_name || leaderboard[1].username}
+                      {lbData[1].username}
                     </h3>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{leaderboard[1].score} points</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{lbData[1].score} points</p>
                     <div className="text-xs text-muted-foreground">
-                      {leaderboard[1].verified_submissions} quests • {leaderboard[1].total_badges} badges
+                      {lbData[1].total_submissions} quests • {lbData[1].total_badges} badges
                     </div>
                   </CardContent>
                 </Card>
@@ -296,9 +217,9 @@ const Leaderboard = () => {
                     <div className="relative mb-6">
                       <div className="w-24 h-24 mx-auto bg-gradient-to-br from-yellow-200 to-yellow-300 dark:from-yellow-600 dark:to-yellow-700 rounded-full flex items-center justify-center shadow-lg">
                         <Avatar className="h-20 w-20 border-4 border-yellow-400 dark:border-yellow-500">
-                          <AvatarImage src={leaderboard[0].avatar_url} />
+                          <AvatarImage src={lbData[0].avatar_url || ''} />
                           <AvatarFallback className="text-xl font-bold">
-                            {leaderboard[0].full_name?.charAt(0) || leaderboard[0].username?.charAt(0)?.toUpperCase()}
+                            {lbData[0].username?.charAt(0)?.toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       </div>
@@ -308,11 +229,11 @@ const Leaderboard = () => {
                     </div>
                     <Badge className="mb-3 bg-yellow-500 text-white border-0">Champion</Badge>
                     <h3 className="font-bold text-xl mb-2 truncate">
-                      {leaderboard[0].full_name || leaderboard[0].username}
+                      {lbData[0].username}
                     </h3>
-                    <p className="text-lg font-semibold text-yellow-700 dark:text-yellow-400 mb-2">{leaderboard[0].score} points</p>
+                    <p className="text-lg font-semibold text-yellow-700 dark:text-yellow-400 mb-2">{lbData[0].score} points</p>
                     <div className="text-sm text-muted-foreground">
-                      {leaderboard[0].verified_submissions} quests • {leaderboard[0].total_badges} badges
+                      {lbData[0].total_submissions} quests • {lbData[0].total_badges} badges
                     </div>
                   </CardContent>
                 </Card>
@@ -325,9 +246,9 @@ const Leaderboard = () => {
                     <div className="relative mb-4">
                       <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-700 dark:to-amber-800 rounded-full flex items-center justify-center">
                         <Avatar className="h-16 w-16 border-2 border-amber-300 dark:border-amber-600">
-                          <AvatarImage src={leaderboard[2].avatar_url} />
+                          <AvatarImage src={lbData[2].avatar_url || ''} />
                           <AvatarFallback className="text-lg font-semibold">
-                            {leaderboard[2].full_name?.charAt(0) || leaderboard[2].username?.charAt(0)?.toUpperCase()}
+                            {lbData[2].username?.charAt(0)?.toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       </div>
@@ -336,11 +257,11 @@ const Leaderboard = () => {
                       </div>
                     </div>
                     <h3 className="font-semibold text-lg mb-1 truncate">
-                      {leaderboard[2].full_name || leaderboard[2].username}
+                      {lbData[2].username}
                     </h3>
-                    <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">{leaderboard[2].score} points</p>
+                    <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">{lbData[2].score} points</p>
                     <div className="text-xs text-muted-foreground">
-                      {leaderboard[2].verified_submissions} quests • {leaderboard[2].total_badges} badges
+                      {lbData[2].total_submissions} quests • {lbData[2].total_badges} badges
                     </div>
                   </CardContent>
                 </Card>
@@ -362,11 +283,11 @@ const Leaderboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {leaderboard.map((entry) => (
+              {lbData.slice(0, 50).map((entry, index) => (
                 <div
-                  key={entry.user_id}
+                  key={entry.id}
                   className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-200 hover:shadow-md ${
-                    entry.user_id === user?.id 
+                    entry.id === user?.id 
                       ? 'bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20 shadow-lg' 
                       : 'hover:bg-gradient-to-r hover:from-muted/30 hover:to-transparent border border-transparent hover:border-border/50'
                   }`}
@@ -376,19 +297,19 @@ const Leaderboard = () => {
                   </div>
                   
                   <Avatar className="h-12 w-12 border-2 border-border/20">
-                    <AvatarImage src={entry.avatar_url} />
+                    <AvatarImage src={entry.avatar_url || ''} />
                     <AvatarFallback className="font-semibold">
-                      {entry.full_name?.charAt(0) || entry.username?.charAt(0)?.toUpperCase()}
+                      {entry.username?.charAt(0)?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-lg">
-                        {entry.full_name || entry.username || 'Anonymous User'}
+                        {entry.username || 'Anonymous User'}
                       </h3>
                       {getRankBadge(entry.rank)}
-                      {entry.user_id === user?.id && (
+                      {entry.id === user?.id && (
                         <Badge className="bg-primary text-primary-foreground">You</Badge>
                       )}
                     </div>
@@ -399,7 +320,7 @@ const Leaderboard = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Trophy className="h-4 w-4 text-secondary" />
-                        <span>{entry.verified_submissions} quests</span>
+                        <span>{entry.total_submissions} quests</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Medal className="h-4 w-4 text-accent" />
@@ -413,7 +334,7 @@ const Leaderboard = () => {
           </CardContent>
         </Card>
 
-        {leaderboard.length === 0 && (
+        {lbData.length === 0 && (
           <Card className="bg-gradient-to-br from-background to-accent/5">
             <CardContent className="text-center py-12">
               <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
