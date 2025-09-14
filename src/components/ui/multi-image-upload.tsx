@@ -10,13 +10,17 @@ interface MultiImageUploadProps {
   existingImages?: string[];
   maxImages?: number;
   maxSize?: number; // in MB
+  bucket?: string; // Storage bucket name
+  path?: string; // Storage path prefix
 }
 
 export const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
   onImagesUpdate,
   existingImages = [],
   maxImages = 3,
-  maxSize = 5
+  maxSize = 5,
+  bucket = 'community-images',
+  path = 'community-posts'
 }) => {
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<string[]>(existingImages);
@@ -65,10 +69,10 @@ export const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
         // Upload file
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `community-posts/${fileName}`;
+        const filePath = `${path}/${fileName}`;
 
         const { data, error } = await supabase.storage
-          .from('quest-submissions')
+          .from(bucket)
           .upload(filePath, file);
 
         if (error) {
@@ -86,7 +90,7 @@ export const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('quest-submissions')
+          .from(bucket)
           .getPublicUrl(filePath);
 
         newUrls.push(publicUrl);

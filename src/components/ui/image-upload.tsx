@@ -10,13 +10,17 @@ interface ImageUploadProps {
   onImageRemove: () => void;
   existingImage?: string;
   maxSize?: number; // in MB
+  bucket?: string; // Storage bucket name
+  path?: string; // Storage path prefix
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   onImageUpload,
   onImageRemove,
   existingImage,
-  maxSize = 5
+  maxSize = 5,
+  bucket = 'community-images',
+  path = 'community-posts'
 }) => {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(existingImage || null);
@@ -57,10 +61,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       // Check if storage bucket exists by trying to upload
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `community-posts/${fileName}`;
+      const filePath = `${path}/${fileName}`;
 
       const { data, error } = await supabase.storage
-        .from('quest-submissions')
+        .from(bucket)
         .upload(filePath, file);
 
       if (error) {
@@ -79,7 +83,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('quest-submissions')
+        .from(bucket)
         .getPublicUrl(filePath);
 
       onImageUpload(publicUrl);

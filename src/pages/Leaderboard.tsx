@@ -53,10 +53,11 @@ const Leaderboard = () => {
 
       if (badgeError) throw badgeError;
 
-      // Get submission counts for each user
+      // Get submission counts for each user (excluding rejected ones)
       const { data: submissionCounts, error: submissionError } = await supabase
         .from("Submissions")
-        .select("user_id");
+        .select("user_id, status")
+        .neq("status", "rejected");
 
       if (submissionError) throw submissionError;
 

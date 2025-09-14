@@ -4,11 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Coins, Award, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { addNewBadges } from '@/utils/addNewBadges';
 import { TopNavbar } from '@/components/navigation/TopNavbar';
+import { usePoints } from '@/hooks/usePoints';
 
 interface BadgeData {
   id: string;
@@ -32,6 +33,23 @@ const BadgeGallery = () => {
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [allBadges, setAllBadges] = useState<BadgeData[]>([]);
   const [loading, setLoading] = useState(true);
+  const { points, loading: pointsLoading, recalculatePoints } = usePoints();
+
+  const handleRecalculatePoints = async () => {
+    try {
+      await recalculatePoints();
+      toast({
+        title: 'Success',
+        description: 'Points have been recalculated based on your activity history.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to recalculate points.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -115,7 +133,23 @@ const BadgeGallery = () => {
         </div>
 
         {/* Achievement Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-yellow-500/10 hover:shadow-lg transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-yellow-500/10 rounded-full">
+                  <Coins className="h-6 w-6 text-yellow-500" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-yellow-600">
+                    {pointsLoading ? '...' : points.total_points.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Current Points</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:shadow-lg transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center space-x-4">
@@ -134,7 +168,7 @@ const BadgeGallery = () => {
             <CardContent className="p-6">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-secondary/10 rounded-full">
-                  <Calendar className="h-6 w-6 text-secondary" />
+                  <Award className="h-6 w-6 text-secondary" />
                 </div>
                 <div>
                   <p className="text-3xl font-bold">{allBadges.length}</p>
@@ -160,6 +194,55 @@ const BadgeGallery = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Points Breakdown */}
+        <Card className="mb-12 border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-yellow-500/10">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-yellow-500" />
+                  Points Breakdown
+                </CardTitle>
+                <CardDescription>How you've earned your points</CardDescription>
+              </div>
+              <Button 
+                onClick={handleRecalculatePoints} 
+                variant="outline" 
+                size="sm"
+                disabled={pointsLoading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${pointsLoading ? 'animate-spin' : ''}`} />
+                Recalculate
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <div className="text-lg font-semibold text-blue-600">+1</div>
+                <div className="text-sm text-muted-foreground">Daily Visit</div>
+                <div className="text-xs mt-1 font-medium">{points.daily_visit_points} earned</div>
+              </div>
+              <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                <div className="text-lg font-semibold text-green-600">+10</div>
+                <div className="text-sm text-muted-foreground">Quest Complete</div>
+                <div className="text-xs mt-1 font-medium">{points.quest_completion_points} earned</div>
+              </div>
+              <div className="text-center p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                <div className="text-lg font-semibold text-purple-600">+5</div>
+                <div className="text-sm text-muted-foreground">Exercise Quota</div>
+                <div className="text-xs mt-1 font-medium">{points.exercise_quota_points} earned</div>
+              </div>
+              <div className="text-center p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                <div className="text-lg font-semibold text-orange-600">+10/+50</div>
+                <div className="text-sm text-muted-foreground">Streak Bonus</div>
+                <div className="text-xs mt-1 font-medium">{points.streak_bonus_points} earned</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Earned Badges */}
         {userBadges.length > 0 && (

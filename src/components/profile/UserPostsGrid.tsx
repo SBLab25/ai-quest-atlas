@@ -6,6 +6,7 @@ import { Heart, MessageCircle, Share2, Grid3X3, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { PostImageCarousel } from '@/components/ui/post-image-carousel';
 
 interface Post {
   id: string;
@@ -49,11 +50,14 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
     }
   };
 
-  const getPostImage = (post: Post) => {
+  const getPostImages = (post: Post) => {
     if (post.image_urls && post.image_urls.length > 0) {
-      return post.image_urls[0];
+      return post.image_urls;
     }
-    return post.image_url;
+    if (post.image_url) {
+      return [post.image_url];
+    }
+    return [];
   };
 
   const formatDate = (dateString: string) => {
@@ -113,56 +117,46 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
           {posts.map((post) => (
             <Dialog key={post.id}>
               <DialogTrigger asChild>
-                <div className="group cursor-pointer">
-                  <AspectRatio ratio={1}>
-                    <div 
-                      className="w-full h-full bg-gradient-to-br from-muted to-muted/50 rounded-lg overflow-hidden relative transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02]"
-                      style={{
-                        backgroundImage: getPostImage(post) ? `url(${getPostImage(post)})` : undefined,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center'
-                      }}
-                    >
-                      {!getPostImage(post) && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center p-4">
-                            <h4 className="font-semibold text-sm line-clamp-2">
-                              {post.title}
-                            </h4>
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <div className="flex gap-4 text-foreground">
-                          <div className="flex items-center gap-1">
-                            <Heart className="h-4 w-4" />
-                            <span className="text-sm font-semibold">0</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MessageCircle className="h-4 w-4" />
-                            <span className="text-sm font-semibold">0</span>
-                          </div>
+                <div className="group cursor-pointer relative">
+                  <AspectRatio ratio={1} className="w-full">
+                    {getPostImages(post).length > 0 ? (
+                      <PostImageCarousel
+                        images={getPostImages(post)}
+                        alt={post.title}
+                        className="w-full h-full transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02] rounded-lg overflow-hidden"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02]">
+                        <div className="text-center p-4">
+                          <h4 className="font-semibold text-sm line-clamp-2">
+                            {post.title}
+                          </h4>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </AspectRatio>
+                  <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-lg">
+                    <div className="flex gap-4 text-foreground">
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-4 w-4" />
+                        <span className="text-sm font-semibold">0</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="h-4 w-4" />
+                        <span className="text-sm font-semibold">0</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </DialogTrigger>
               
               <DialogContent className="max-w-2xl" aria-describedby="post-detail-description">
                 <div className="space-y-4" id="post-detail-description">
-                  {getPostImage(post) && (
-                    <AspectRatio ratio={16/9}>
-                      <img 
-                        src={getPostImage(post)!} 
-                        alt={post.title}
-                        className="w-full h-full object-cover rounded-lg"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </AspectRatio>
+                  {getPostImages(post).length > 0 && (
+                    <PostImageCarousel 
+                      images={getPostImages(post)}
+                      alt={post.title}
+                    />
                   )}
                   <div>
                     <h3 className="text-xl font-bold">{post.title}</h3>
@@ -202,19 +196,14 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
           {posts.map((post) => (
             <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
               <div className="flex gap-4">
-                {getPostImage(post) && (
+                {getPostImages(post).length > 0 && (
                   <div className="flex-shrink-0">
-                    <AspectRatio ratio={1} className="w-20">
-                      <img 
-                        src={getPostImage(post)!} 
-                        alt={post.title}
-                        className="w-full h-full object-cover rounded-lg"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </AspectRatio>
+                    <PostImageCarousel 
+                      images={getPostImages(post)}
+                      alt={post.title}
+                      className="w-20"
+                      showCounter={false}
+                    />
                   </div>
                 )}
                 <div className="flex-1 space-y-2">

@@ -3,6 +3,31 @@ import { supabase } from "@/integrations/supabase/client";
 export const addNewBadges = async () => {
   const newBadges = [
     {
+      name: "Welcome Adventurer",
+      description: "Welcome to Discovery Atlas! Your journey begins now.",
+      icon_url: "👋"
+    },
+    {
+      name: "First Steps",
+      description: "You've taken your first steps into the world of discovery!",
+      icon_url: "👣"
+    },
+    {
+      name: "Early Explorer",
+      description: "Completed your first 3 activities. Keep exploring!",
+      icon_url: "🧭"
+    },
+    {
+      name: "Daily Visitor",
+      description: "Visited the app for 7 consecutive days. Building great habits!",
+      icon_url: "📅"
+    },
+    {
+      name: "Quest Starter",
+      description: "Started your first quest. Adventure awaits!",
+      icon_url: "🚀"
+    },
+    {
       name: "First Quest Complete!",
       description: "Congratulations on completing your first quest! Welcome to the adventure community.",
       icon_url: "🏆"
@@ -31,6 +56,21 @@ export const addNewBadges = async () => {
       name: "Bee Discoverer",
       description: "Found a bee hive! You're helping track important pollinators in your area.",
       icon_url: "🐝"
+    },
+    {
+      name: "Streak Keeper",
+      description: "Maintained a 10-day streak! Consistency is key to great discoveries.",
+      icon_url: "🔥"
+    },
+    {
+      name: "Streak Master",
+      description: "Amazing! You've maintained a 30-day streak. You're a true adventurer!",
+      icon_url: "⭐"
+    },
+    {
+      name: "Point Collector",
+      description: "Earned your first 100 points! Keep collecting and exploring.",
+      icon_url: "💎"
     }
   ];
 

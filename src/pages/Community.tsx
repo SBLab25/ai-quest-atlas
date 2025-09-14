@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Heart, MessageCircle, Send, Share2, Filter, Plus, Tag, Image, MapPin, Clock, User } from "lucide-react";
 import { MultiImageUpload } from "@/components/ui/multi-image-upload";
+import { PostImageCarousel } from "@/components/ui/post-image-carousel";
 
 // Unified interface for all posts (community posts + quest submissions)
 interface UnifiedPost {
@@ -77,6 +78,7 @@ const Community = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [newComment, setNewComment] = useState<Record<string, string>>({});
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
 
   // SEO
   useEffect(() => {
@@ -177,6 +179,12 @@ const Community = () => {
           const comments = commentsRes.data || [];
           const profile = allProfiles.find((pr) => pr.id === p.user_id);
           
+          
+          // Check for specific post debugging
+          if (p.title?.includes("Hidden Temple")) {
+            console.log("Hidden Temple post found in community_posts:", p);
+          }
+          
           return {
             id: p.id,
             user_id: p.user_id,
@@ -185,7 +193,7 @@ const Community = () => {
             content: p.content,
             post_type: p.post_type,
             tags: p.tags || [],
-            image_urls: toPublicUrls('quest-submissions', p.image_urls || []) ,
+            image_urls: toPublicUrls('community-images', p.image_urls || []),
             created_at: p.created_at,
             likes_count: likes.length,
             comments_count: comments.length,
@@ -213,17 +221,28 @@ const Community = () => {
           const shares = sharesRes.data || [];
           const profile = allProfiles.find((pr) => pr.id === s.user_id);
 
+          // Process image URLs - ensure consistency between quest submissions and community posts
+          let processedImageUrls: string[] = [];
+          if (s.image_urls && s.image_urls.length > 0) {
+            processedImageUrls = toPublicUrls('quest-submissions', s.image_urls);
+          } else if (s.photo_url) {
+            // photo_url is already a full URL, but ensure it's in array format for consistency
+            processedImageUrls = [s.photo_url];
+          }
+          
+          // Check for specific quest submission debugging
+          if (s.description?.includes("Hidden Temple") || s.description?.includes("Kondapalli")) {
+            console.log("Hidden Temple quest submission found:", s);
+            console.log("Processed image URLs:", processedImageUrls);
+          }
+
           return {
             id: s.id,
             user_id: s.user_id,
             type: 'quest',
             content: s.description || '',
             description: s.description,
-            image_urls: s.image_urls && s.image_urls.length > 0 
-              ? toPublicUrls('quest-submissions', s.image_urls)
-              : s.photo_url 
-                ? [s.photo_url] // photo_url is already a full URL, no need to convert
-                : [],
+            image_urls: processedImageUrls,
             created_at: s.submitted_at,
             geo_location: s.geo_location,
             likes_count: likes.length,
@@ -497,6 +516,33 @@ const Community = () => {
     }
   };
 
+  const toggleDescriptionExpanded = (postId: string) => {
+    setExpandedDescriptions(prev => ({ ...prev, [postId]: !prev[postId] }));
+  };
+
+  const renderDescription = (post: UnifiedPost, maxLength: number = 150) => {
+    const description = post.content || post.description || "";
+    const isExpanded = expandedDescriptions[post.id];
+    
+    if (description.length <= maxLength) {
+      return <span>{description}</span>;
+    }
+    
+    return (
+      <span>
+        {isExpanded ? description : `${description.slice(0, maxLength)}...`}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => toggleDescriptionExpanded(post.id)}
+          className="p-0 h-auto ml-1 text-primary hover:underline"
+        >
+          {isExpanded ? "show less" : "view more"}
+        </Button>
+      </span>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       <TopNavbar />
@@ -512,7 +558,7 @@ const Community = () => {
           </p>
         </div>
 
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           {/* Community Controls */}
           <div className="relative mb-8">
             <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
@@ -583,6 +629,8 @@ const Community = () => {
                               onImagesUpdate={setImageUrls}
                               existingImages={imageUrls}
                               maxImages={3}
+                              bucket="community-images"
+                              path="community-posts"
                             />
                           </div>
                           
@@ -732,42 +780,10 @@ const Community = () => {
 
                               {/* Post Images */}
                               {post.image_urls && post.image_urls.length > 0 && (
-                                <div className="aspect-square">
-                                  {post.image_urls.length === 1 ? (
-                                    <img
-                                      src={post.image_urls[0]}
-                                      alt="Crew post image"
-                                      loading="lazy"
-                                      className="w-full h-full object-cover hover-scale"
-                                      onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.style.display = 'none';
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className={`grid gap-1 h-full ${post.image_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
-                                      {post.image_urls.slice(0, 3).map((url, index) => (
-                                        <div key={index} className={`relative ${post.image_urls!.length === 3 && index === 0 ? 'col-span-2' : ''}`}>
-                                          <img
-                                            src={url}
-                                            alt={`Crew post image ${index + 1}`}
-                                            loading="lazy"
-                                            className="w-full h-full object-cover hover-scale"
-                                            onError={(e) => {
-                                              const target = e.target as HTMLImageElement;
-                                              target.style.display = 'none';
-                                            }}
-                                          />
-                                          {index === 2 && post.image_urls!.length > 3 && (
-                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                              <span className="text-white font-semibold">+{post.image_urls!.length - 3}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
+                                <PostImageCarousel 
+                                  images={post.image_urls}
+                                  alt="Community post"
+                                />
                               )}
 
                               {/* Post Actions - Below Image */}
@@ -813,9 +829,9 @@ const Community = () => {
                                     </p>
                                   )}
                                   
-                                  <p>
-                                    <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
-                                    {post.content || post.description}
+                                   <p>
+                                     <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
+                                     {renderDescription(post, 100)}
                                   </p>
 
                                   {post.comments_count > 0 && (
@@ -902,44 +918,31 @@ const Community = () => {
                               )}
                             </>
                           ) : (
-                            // Desktop Layout: Instagram-like with images on left, content on right
-                            <div className="flex min-h-[400px]">
-                              {/* Left Side - Images */}
-                              <div className="flex-1 bg-black flex items-center justify-center">
+                            // Desktop Layout: Instagram-like with fixed square images on left, content on right
+                            <div className="flex min-h-[350px] max-w-xl mx-auto">
+                              {/* Left Side - Images with fixed square ratio */}
+                              <div className="w-[350px] flex-shrink-0">
                                 {post.image_urls && post.image_urls.length > 0 ? (
-                                  post.image_urls.length === 1 ? (
-                                    <img
-                                      src={post.image_urls[0]}
-                                      alt="Post image"
-                                      className="max-w-full max-h-[600px] object-contain"
-                                      onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.style.display = 'none';
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="grid gap-1 w-full h-full max-h-[600px]">
-                                      {post.image_urls.slice(0, 1).map((url, index) => (
-                                        <img
-                                          key={index}
-                                          src={url}
-                                          alt={`Post image ${index + 1}`}
-                                          className="w-full h-full object-contain"
-                                          onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            target.style.display = 'none';
-                                          }}
-                                        />
-                                      ))}
-                                    </div>
-                                  )
+                                  <PostImageCarousel 
+                                    images={post.image_urls}
+                                    alt={post.title || "Community post"}
+                                    className="w-full h-[350px]"
+                                  />
                                 ) : (
-                                  <div className="text-muted-foreground">No image</div>
+                                  <div className="w-full h-[350px] bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center border border-border rounded-lg">
+                                    <div className="text-center p-6">
+                                      <h3 className="font-semibold text-lg mb-2">{post.title}</h3>
+                                      <p className="text-muted-foreground text-sm line-clamp-4">{post.content}</p>
+                                      <div className="mt-3 text-xs text-muted-foreground">
+                                        {post.type === 'quest' ? '🗺️ Quest Discovery' : '💬 Community Post'}
+                                      </div>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
 
                               {/* Right Side - Content and Interactions */}
-                              <div className="w-80 flex flex-col">
+                              <div className="w-64 flex flex-col">
                                 {/* Post Header */}
                                 <div className="flex items-center gap-3 p-4 border-b">
                                   <Avatar className="h-10 w-10">
@@ -973,9 +976,9 @@ const Community = () => {
                                       <h3 className="font-semibold text-base">{post.title}</h3>
                                     )}
                                     
-                                    <p className="text-sm">
-                                      <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
-                                      {post.content || post.description}
+                                     <p className="text-sm">
+                                       <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
+                                       {renderDescription(post, 120)}
                                     </p>
 
                                     {/* Badges */}

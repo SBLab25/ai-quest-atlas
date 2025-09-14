@@ -77,14 +77,6 @@ export const ProfileDropdown = () => {
               <Shield className="mr-2 h-4 w-4" />
               Admin Panel
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/analytics")}>
-              <BarChart className="mr-2 h-4 w-4" />
-              Analytics
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/advanced-analytics")}>
-              <BarChart className="mr-2 h-4 w-4" />
-              Advanced Analytics
-            </DropdownMenuItem>
           </>
         )}
         <DropdownMenuSeparator />

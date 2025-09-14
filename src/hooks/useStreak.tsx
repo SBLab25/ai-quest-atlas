@@ -18,8 +18,9 @@ export const useStreak = () => {
       // This is a simplified version that works with existing tables
       const { data: submissions } = await supabase
         .from('Submissions')
-        .select('submitted_at')
+        .select('submitted_at, status')
         .eq('user_id', user.id)
+        .neq('status', 'rejected')
         .order('submitted_at', { ascending: false })
         .limit(30);
 

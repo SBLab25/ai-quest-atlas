@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Edit, Trash2, Users, BarChart, Flag, Crown, Shield, User as UserIcon } from 'lucide-react';
+import { Settings, Plus, Edit, Trash2, Users, BarChart, Flag, Crown, Shield, User as UserIcon, ImageIcon } from 'lucide-react';
+import { fixHiddenTemplePost } from '@/utils/fixCommunityImages';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RecalculateAllPoints } from '@/components/admin/RecalculateAllPoints';
 
 interface Quest {
   id: string;
@@ -42,11 +44,25 @@ interface Submission {
   photo_url?: string;
 }
 
+interface CommunityPost {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  post_type: string;
+  tags: string[];
+  image_urls: string[];
+  created_at: string;
+  username?: string;
+  full_name?: string;
+}
+
 export const AdminPanel = () => {
   const { toast } = useToast();
   const [quests, setQuests] = useState<Quest[]>([]);
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
   const [newQuest, setNewQuest] = useState({
@@ -64,16 +80,30 @@ export const AdminPanel = () => {
 
   const fetchData = async () => {
     try {
-      const [questsRes, submissionsRes] = await Promise.all([
+      const [questsRes, submissionsRes, communityPostsRes] = await Promise.all([
         supabase.from('Quests').select('*').order('created_at', { ascending: false }),
-        supabase.from('Submissions').select('*').order('submitted_at', { ascending: false })
+        supabase.from('Submissions').select('*').order('submitted_at', { ascending: false }),
+        supabase.from('community_posts').select('*').order('created_at', { ascending: false })
       ]);
 
       if (questsRes.error) throw questsRes.error;
       if (submissionsRes.error) throw submissionsRes.error;
+      if (communityPostsRes.error) throw communityPostsRes.error;
 
       setQuests(questsRes.data || []);
       setSubmissions(submissionsRes.data || []);
+      
+      // Fetch profiles for community posts
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      const postsWithProfiles = (communityPostsRes.data || []).map(post => {
+        const profile = profiles?.find(p => p.id === post.user_id);
+        return {
+          ...post,
+          username: profile?.username || 'Unknown',
+          full_name: profile?.full_name || 'Unknown User'
+        };
+      });
+      setCommunityPosts(postsWithProfiles);
 
       // Fetch users with their roles from auth.users and user_roles tables
       await fetchUsersWithRoles();
@@ -252,6 +282,45 @@ export const AdminPanel = () => {
     }
   };
 
+  const deleteCommunityPost = async (postId: string) => {
+    try {
+      const { error } = await supabase.from('community_posts').delete().eq('id', postId);
+      if (error) throw error;
+
+      toast({ title: 'Success', description: 'Community post deleted successfully' });
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting community post:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete community post',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const updatePostImageUrl = async (postId: string, newImageUrl: string) => {
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ image_urls: [newImageUrl] })
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      toast({ title: 'Success', description: 'Post image updated successfully' });
+      fetchData();
+    } catch (error) {
+      console.error('Error updating post image:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update post image',
+        variant: 'destructive'
+      });
+    }
+  };
+
+
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
@@ -291,11 +360,13 @@ export const AdminPanel = () => {
         </div>
 
         <Tabs defaultValue="quests" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="quests">Quests</TabsTrigger>
             <TabsTrigger value="submissions">Submissions</TabsTrigger>
+            <TabsTrigger value="posts">Community Posts</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="points">Points</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quests" className="space-y-6">
@@ -429,24 +500,140 @@ export const AdminPanel = () => {
                         </Badge>
                       </div>
                       {submission.description && (
-                        <p className="text-sm mb-3">{submission.description}</p>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => updateSubmissionStatus(submission.id, 'verified')}
-                          disabled={submission.status === 'verified'}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateSubmissionStatus(submission.id, 'rejected')}
-                          disabled={submission.status === 'rejected'}
-                        >
-                          Reject
-                        </Button>
+                         <p className="text-sm mb-3">{submission.description}</p>
+                       )}
+                       {submission.photo_url && (
+                         <div className="mb-3">
+                           <img 
+                             src={submission.photo_url} 
+                             alt="Submission" 
+                             className="w-full max-w-md h-48 object-cover rounded-lg border"
+                             onError={(e) => {
+                               e.currentTarget.style.display = 'none';
+                             }}
+                           />
+                         </div>
+                       )}
+                       <div className="flex items-center gap-2">
+                         <Button
+                           size="sm"
+                           onClick={() => updateSubmissionStatus(submission.id, 'verified')}
+                           disabled={submission.status === 'verified'}
+                         >
+                           Approve
+                         </Button>
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => updateSubmissionStatus(submission.id, 'rejected')}
+                           disabled={submission.status === 'rejected'}
+                         >
+                           Reject
+                         </Button>
+                         <Button
+                           size="sm"
+                           variant="secondary"
+                           onClick={() => updateSubmissionStatus(submission.id, 'pending')}
+                           disabled={submission.status === 'pending'}
+                         >
+                           Reset to Pending
+                         </Button>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="posts" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Community Posts Management</CardTitle>
+                    <CardDescription>Manage community posts and fix image issues</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {communityPosts.map((post) => (
+                    <div key={post.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{post.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            By {post.full_name} (@{post.username}) • {new Date(post.created_at).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm mt-2 line-clamp-2">{post.content}</p>
+                          {post.tags && post.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {post.tags.map((tag, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={post.post_type === 'quest' ? 'default' : 'secondary'}>
+                            {post.post_type}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium">Current Images:</label>
+                          <div className="text-sm text-muted-foreground">
+                            {post.image_urls && post.image_urls.length > 0 ? (
+                              <div className="space-y-1">
+                                {post.image_urls.map((url, index) => (
+                                  <div key={index} className="break-all">{url}</div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span>No images</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Enter new image URL to fix missing images"
+                            className="flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const input = e.target as HTMLInputElement;
+                                if (input.value.trim()) {
+                                  updatePostImageUrl(post.id, input.value.trim());
+                                  input.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              const input = e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement;
+                              if (input?.value.trim()) {
+                                updatePostImageUrl(post.id, input.value.trim());
+                                input.value = '';
+                              }
+                            }}
+                          >
+                            Update Image
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteCommunityPost(post.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -553,16 +740,42 @@ export const AdminPanel = () => {
                   <div className="text-2xl font-bold">{users.length}</div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-                  <BarChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{submissions.length}</div>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
+                    <BarChart className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{submissions.length}</div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Community Posts</CardTitle>
+                    <Flag className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{communityPosts.length}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Posts with Missing Images</CardTitle>
+                    <Flag className="h-4 w-4 text-destructive" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {communityPosts.filter(post => !post.image_urls || post.image_urls.length === 0).length}
+                    </div>
+                  </CardContent>
+                </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="points" className="space-y-6">
+            <RecalculateAllPoints />
           </TabsContent>
         </Tabs>
 
@@ -602,19 +815,31 @@ export const AdminPanel = () => {
                   value={editingQuest.location}
                   onChange={(e) => setEditingQuest({ ...editingQuest, location: e.target.value })}
                 />
-                <Select value={editingQuest.difficulty.toString()} onValueChange={(value) => setEditingQuest({ ...editingQuest, difficulty: parseInt(value) })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Difficulty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 Star</SelectItem>
-                    <SelectItem value="2">2 Stars</SelectItem>
-                    <SelectItem value="3">3 Stars</SelectItem>
-                    <SelectItem value="4">4 Stars</SelectItem>
-                    <SelectItem value="5">5 Stars</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={updateQuest} className="w-full">Update Quest</Button>
+                 <Select value={editingQuest.difficulty.toString()} onValueChange={(value) => setEditingQuest({ ...editingQuest, difficulty: parseInt(value) })}>
+                   <SelectTrigger>
+                     <SelectValue placeholder="Difficulty" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="1">1 Star</SelectItem>
+                     <SelectItem value="2">2 Stars</SelectItem>
+                     <SelectItem value="3">3 Stars</SelectItem>
+                     <SelectItem value="4">4 Stars</SelectItem>
+                     <SelectItem value="5">5 Stars</SelectItem>
+                   </SelectContent>
+                 </Select>
+                 <div className="flex items-center gap-2">
+                   <input
+                     type="checkbox"
+                     id="quest-active"
+                     checked={editingQuest.is_active}
+                     onChange={(e) => setEditingQuest({ ...editingQuest, is_active: e.target.checked })}
+                     className="rounded"
+                   />
+                   <label htmlFor="quest-active" className="text-sm font-medium">
+                     Quest is active
+                   </label>
+                 </div>
+                 <Button onClick={updateQuest} className="w-full">Update Quest</Button>
               </div>
             </DialogContent>
           </Dialog>
