@@ -30,6 +30,7 @@ export const usePoints = () => {
   const { streak } = useStreak();
 
   const getStorageKey = () => `user_points_${user?.id || 'guest'}`;
+  const getHistoryKey = () => `user_points_history_${user?.id || 'guest'}`;
 
   const loadPoints = () => {
     if (!user) {
@@ -55,6 +56,18 @@ export const usePoints = () => {
     
     try {
       localStorage.setItem(getStorageKey(), JSON.stringify(newPoints));
+      // write per-day history for calendar display
+      const today = getISTDateString();
+      const histRaw = localStorage.getItem(getHistoryKey());
+      const hist = histRaw ? JSON.parse(histRaw) : {};
+      hist[today] = {
+        total: newPoints.total_points,
+        daily: newPoints.daily_visit_points,
+        quest: newPoints.quest_completion_points,
+        exercise: newPoints.exercise_quota_points,
+        streak: newPoints.streak_bonus_points,
+      };
+      localStorage.setItem(getHistoryKey(), JSON.stringify(hist));
       setPoints(newPoints);
     } catch (error) {
       console.error('Error saving points to localStorage:', error);
@@ -166,5 +179,13 @@ export const usePoints = () => {
     addExerciseQuotaPoints,
     refetchPoints: loadPoints,
     recalculatePoints,
+    getPointsHistory: () => {
+      try {
+        const histRaw = localStorage.getItem(getHistoryKey());
+        return histRaw ? JSON.parse(histRaw) : {};
+      } catch {
+        return {};
+      }
+    }
   };
 };

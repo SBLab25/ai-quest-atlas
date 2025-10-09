@@ -4,6 +4,12 @@ import { ThemeProvider } from "next-themes"
 import App from './App.tsx'
 import './index.css'
 
+// Load saved theme on startup
+const savedTheme = localStorage.getItem('selected-theme');
+if (savedTheme && savedTheme !== 'default') {
+  document.documentElement.classList.add(`theme-${savedTheme}`);
+}
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

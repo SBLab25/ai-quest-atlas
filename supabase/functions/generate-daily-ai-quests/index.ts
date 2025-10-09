@@ -35,8 +35,86 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY!);
+    
+    // Parse request body to check for manual generation
+    let requestBody;
+    try {
+      const text = await req.text();
+      requestBody = text ? JSON.parse(text) : {};
+    } catch {
+      requestBody = {};
+    }
 
-    console.log('Starting daily AI quest generation...');
+    const { manual = false, userId } = requestBody;
+
+    if (manual && userId) {
+      // Manual generation for specific user
+      console.log(`Generating manual quest for user: ${userId}`);
+
+      // Get specific user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, location, latitude, longitude, interests')
+        .eq('id', userId)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error(`Failed to fetch user profile: ${profileError?.message || 'User not found'}`);
+      }
+
+      // Get user's recent AI-generated quests to avoid repetition
+      const { data: recentQuests } = await supabase
+        .from('ai_generated_quests')
+        .select('title, description')
+        .eq('user_id', profile.id)
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const previousQuestTitles = recentQuests?.map(q => q.title) || [];
+
+      const questData = await generateQuestWithGemini({
+        userLocation: profile.location || (profile.latitude && profile.longitude ? `${profile.latitude}, ${profile.longitude}` : 'anywhere'),
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        interests: profile.interests || [],
+        previousQuests: previousQuestTitles
+      });
+
+      if (questData) {
+        const { error: insertError } = await supabase
+          .from('ai_generated_quests')
+          .insert({
+            user_id: profile.id,
+            title: questData.title,
+            description: questData.description,
+            quest_type: questData.quest_type,
+            difficulty: questData.difficulty,
+            location: questData.location,
+            latitude: profile.latitude,
+            longitude: profile.longitude,
+            generated_by: 'gemini',
+            generation_prompt: questData.prompt
+          });
+
+        if (insertError) {
+          throw new Error(`Failed to insert quest: ${insertError.message}`);
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            message: 'Quest generated successfully',
+            quest: questData
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        throw new Error('Failed to generate quest');
+      }
+    }
+
+    // Original bulk generation logic for daily automatic runs
+    console.log('Starting daily AI quest generation for all users...');
 
     // Get all users with location data
     const { data: profiles, error: profilesError } = await supabase
@@ -119,8 +197,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in generate-daily-ai-quests:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -134,28 +213,51 @@ async function generateQuestWithGemini(request: QuestGenerationRequest) {
     throw new Error('GEMINI_API_KEY not configured');
   }
 
-  const prompt = `Generate a personalized daily quest for a user located at: ${request.userLocation}
+  const prompt = `Generate a personalized and innovative daily quest for a user located at: ${request.userLocation}
 
 User interests: ${request.interests.join(', ') || 'general exploration'}
 Recent quests to avoid repeating: ${request.previousQuests.join(', ') || 'none'}
 
-Create a unique, engaging quest that:
-1. Is specific to their geographic location
-2. Takes 30-60 minutes to complete
-3. Encourages exploration or discovery
-4. Is safe and accessible
-5. Incorporates their interests when possible
-6. Is different from their recent quests
+Create a unique, engaging quest that can be one of these types:
 
-Quest types available: discovery, photography, nature, history, science, community, adventure, culture
+LOCATION-BASED QUESTS (30% probability):
+- Explore specific places or landmarks
+- Photography challenges at locations
+- Historical discoveries
+
+SOCIAL INTERACTION QUESTS (40% probability):
+- Meet and interact with strangers (ask about local history, directions, recommendations)
+- Interview someone about their profession or hobbies
+- Ask a local about their favorite hidden spots
+- Compliment 3 strangers and document their reactions
+- Find someone who shares your interests and have a 5-minute conversation
+
+TRUTH OR DARE STYLE QUESTS (20% probability):
+- Truth: Answer deep personal questions and reflect on them
+- Dare: Perform safe, creative challenges in public spaces
+- Knowledge challenges about yourself, your city, or general topics
+
+CREATIVE CHALLENGES (10% probability):
+- Creative writing or storytelling exercises
+- Skill-building micro-challenges
+- Mindfulness and self-reflection tasks
+
+Guidelines:
+1. Should take 30-60 minutes to complete
+2. Must be safe and appropriate
+3. Encourage personal growth, social interaction, or creative expression
+4. Be different from recent quests
+5. Include specific, actionable instructions
+
+Quest types available: discovery, photography, nature, history, science, community, adventure, culture, social, truth, dare, knowledge, creative
 
 Respond with ONLY a valid JSON object in this exact format:
 {
   "title": "Quest title (max 60 characters)",
-  "description": "Detailed quest description with specific instructions and location guidance (200-400 characters)",
+  "description": "Detailed quest description with specific instructions (200-400 characters)",
   "quest_type": "one of the available types",
   "difficulty": 2,
-  "location": "Specific location or area description"
+  "location": "General area or 'anywhere' for non-location specific quests"
 }`;
 
   try {

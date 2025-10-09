@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostImageCarousel } from '@/components/ui/post-image-carousel';
+import { useToast } from '@/hooks/use-toast';
 
 interface Post {
   id: string;
@@ -28,9 +29,13 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchUserPosts();
+    const refetch = () => fetchUserPosts();
+    window.addEventListener('community-posts-changed', refetch);
+    return () => window.removeEventListener('community-posts-changed', refetch);
   }, [userId]);
 
   const fetchUserPosts = async () => {
@@ -173,15 +178,37 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
                     </div>
                   )}
                   <div className="flex gap-4 pt-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      toast({
+                        title: "Like feature",
+                        description: "Like functionality will be available soon!",
+                      });
+                    }}>
                       <Heart className="h-4 w-4 mr-2" />
                       Like
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      toast({
+                        title: "Comments feature",
+                        description: "Comment functionality will be available soon!",
+                      });
+                    }}>
                       <MessageCircle className="h-4 w-4 mr-2" />
                       Comment
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({
+                          title: post.title,
+                          text: post.content,
+                        }).catch(console.error);
+                      } else {
+                        toast({
+                          title: "Share feature",
+                          description: "Share functionality will be available soon!",
+                        });
+                      }
+                    }}>
                       <Share2 className="h-4 w-4 mr-2" />
                       Share
                     </Button>

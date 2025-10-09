@@ -7,9 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Edit, Trash2, Users, BarChart, Flag, Crown, Shield, User as UserIcon, ImageIcon } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Settings, Plus, Edit, Trash2, Users, BarChart, Flag, Crown, Shield, User as UserIcon, ImageIcon, Bot, Sparkles } from 'lucide-react';
 import { fixHiddenTemplePost } from '@/utils/fixCommunityImages';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RecalculateAllPoints } from '@/components/admin/RecalculateAllPoints';
@@ -23,6 +25,21 @@ interface Quest {
   location: string;
   is_active: boolean;
   created_at: string;
+}
+
+interface AIGeneratedQuest {
+  id: string;
+  title: string;
+  description: string;
+  quest_type: string;
+  difficulty: number;
+  location: string;
+  generated_by: string;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface UserWithRole {
@@ -59,12 +76,16 @@ interface CommunityPost {
 
 export const AdminPanel = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [aiQuests, setAiQuests] = useState<AIGeneratedQuest[]>([]);
+  const [showAiQuests, setShowAiQuests] = useState(false);
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
+  const [editingAiQuest, setEditingAiQuest] = useState<AIGeneratedQuest | null>(null);
   const [newQuest, setNewQuest] = useState({
     title: '',
     description: '',
@@ -73,6 +94,16 @@ export const AdminPanel = () => {
     location: '',
     is_active: true
   });
+  const [newAiQuest, setNewAiQuest] = useState({
+    title: '',
+    description: '',
+    quest_type: '',
+    difficulty: 1,
+    location: '',
+    is_active: true,
+    latitude: null as number | null,
+    longitude: null as number | null
+  });
 
   useEffect(() => {
     fetchData();
@@ -80,17 +111,20 @@ export const AdminPanel = () => {
 
   const fetchData = async () => {
     try {
-      const [questsRes, submissionsRes, communityPostsRes] = await Promise.all([
+      const [questsRes, aiQuestsRes, submissionsRes, communityPostsRes] = await Promise.all([
         supabase.from('Quests').select('*').order('created_at', { ascending: false }),
+        supabase.from('ai_generated_quests').select('*').order('created_at', { ascending: false }),
         supabase.from('Submissions').select('*').order('submitted_at', { ascending: false }),
         supabase.from('community_posts').select('*').order('created_at', { ascending: false })
       ]);
 
       if (questsRes.error) throw questsRes.error;
+      if (aiQuestsRes.error) throw aiQuestsRes.error;
       if (submissionsRes.error) throw submissionsRes.error;
       if (communityPostsRes.error) throw communityPostsRes.error;
 
       setQuests(questsRes.data || []);
+      setAiQuests(aiQuestsRes.data || []);
       setSubmissions(submissionsRes.data || []);
       
       // Fetch profiles for community posts
@@ -120,49 +154,28 @@ export const AdminPanel = () => {
   };
 
   const fetchUsersWithRoles = async () => {
+    // Use only tables accessible from client to avoid 403s from admin API on the client
     try {
-      // Get all users from auth.users and profiles
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) throw authError;
+      const [profilesRes, rolesRes] = await Promise.all([
+        supabase.from('profiles').select('*'),
+        supabase.from('user_roles').select('*')
+      ]);
 
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-      if (profilesError) throw profilesError;
+      const profiles = (profilesRes.error || !profilesRes.data) ? [] : profilesRes.data as any[];
+      const userRoles = (rolesRes.error || !rolesRes.data) ? [] : rolesRes.data as any[];
 
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-      if (rolesError) throw rolesError;
-
-      // Combine the data
-      const usersWithRoles = authUsers.users.map(user => {
-        const profile = profiles?.find(p => p.id === user.id);
-        const userRole = userRoles?.find(r => r.user_id === user.id);
-        
-        return {
-          id: user.id,
-          email: user.email || '',
-          username: profile?.username || 'No username',
-          full_name: profile?.full_name || 'No name',
-          created_at: user.created_at,
-          current_role: userRole?.role || 'user'
-        };
-      });
-
-      setUsers(usersWithRoles);
-    } catch (error) {
-      console.error('Error fetching users with roles:', error);
-      // Fallback: just fetch profiles without roles
-      const { data: profiles } = await supabase.from('profiles').select('*');
-      setUsers((profiles || []).map(p => ({
+      const usersWithRoles = profiles.map((p: any) => ({
         id: p.id,
         email: '',
         username: p.username || 'No username',
         full_name: p.full_name || 'No name', 
         created_at: p.created_at,
-        current_role: 'user'
-      })));
+        current_role: (userRoles.find((r: any) => r.user_id === p.id)?.role) || 'user'
+      }));
+      setUsers(usersWithRoles);
+    } catch (error) {
+      console.error('Error fetching users with roles (profiles only):', error);
+      setUsers([]);
     }
   };
 
@@ -232,6 +245,98 @@ export const AdminPanel = () => {
     }
   };
 
+  const createAiQuest = async () => {
+    try {
+      if (!newAiQuest.title.trim() || !newAiQuest.description.trim() || !newAiQuest.quest_type || !newAiQuest.location.trim()) {
+        toast({ title: 'Missing info', description: 'Please fill all required fields (title, description, type, location).', variant: 'destructive' });
+        return;
+      }
+      // Prefer direct DB insert first to avoid CORS issues
+      const payload: any = {
+        title: newAiQuest.title,
+        description: newAiQuest.description,
+        quest_type: newAiQuest.quest_type,
+        difficulty: newAiQuest.difficulty,
+        location: newAiQuest.location,
+        is_active: newAiQuest.is_active,
+        generated_by: user?.id || 'admin',
+        user_id: user?.id || 'admin',
+        latitude: newAiQuest.latitude,
+        longitude: newAiQuest.longitude
+      };
+
+      const { data: inserted, error: dbError } = await supabase
+        .from('ai_generated_quests')
+        .insert([payload])
+        .select('*')
+        .single();
+      if (dbError) throw dbError;
+
+      // Optimistic UI update
+      setAiQuests(prev => [{ ...(inserted as any) }, ...prev]);
+
+      toast({ title: 'Success', description: 'AI Quest created' });
+      setNewAiQuest({
+        title: '',
+        description: '',
+        quest_type: '',
+        difficulty: 1,
+        location: '',
+        is_active: true,
+        latitude: null,
+        longitude: null
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error('Error creating AI quest:', error);
+      toast({ title: 'Creation failed', description: error?.message || 'Failed to create AI quest.', variant: 'destructive' });
+    }
+  };
+
+  const updateAiQuest = async () => {
+    if (!editingAiQuest) return;
+
+    try {
+      if (!editingAiQuest.title.trim() || !editingAiQuest.description.trim() || !editingAiQuest.quest_type || !editingAiQuest.location.trim()) {
+        toast({ title: 'Missing info', description: 'Please fill all required fields (title, description, type, location).', variant: 'destructive' });
+        return;
+      }
+
+      // Direct DB update to avoid CORS/Edge Function issues
+      const { error: dbError } = await supabase
+        .from('ai_generated_quests')
+        .update({
+          title: editingAiQuest.title,
+          description: editingAiQuest.description,
+          quest_type: editingAiQuest.quest_type,
+          difficulty: editingAiQuest.difficulty,
+          location: editingAiQuest.location,
+          is_active: editingAiQuest.is_active,
+          latitude: editingAiQuest.latitude ?? null,
+          longitude: editingAiQuest.longitude ?? null
+        })
+        .eq('id', editingAiQuest.id);
+
+      if (dbError) throw dbError;
+
+      // Fetch fresh row after update (separate GET avoids 406)
+      const { data: refreshed } = await supabase
+        .from('ai_generated_quests')
+        .select('*')
+        .eq('id', editingAiQuest.id)
+        .single();
+      if (refreshed) {
+        setAiQuests(prev => prev.map(q => q.id === editingAiQuest.id ? { ...q, ...(refreshed as any) } : q));
+      }
+      toast({ title: 'Success', description: 'AI Quest updated' });
+      setEditingAiQuest(null);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error updating AI quest:', error);
+      toast({ title: 'Update failed', description: error?.message || 'Failed to update AI quest.', variant: 'destructive' });
+    }
+  };
+
   const deleteQuest = async (questId: string) => {
     try {
       const { error } = await supabase.from('Quests').delete().eq('id', questId);
@@ -249,17 +354,66 @@ export const AdminPanel = () => {
     }
   };
 
+  const deleteAiQuest = async (questId: string) => {
+    try {
+      const { error: dbError } = await supabase
+        .from('ai_generated_quests')
+        .delete()
+        .eq('id', questId);
+      if (dbError) throw dbError;
+
+      setAiQuests(prev => prev.filter(q => q.id !== questId));
+      toast({ title: 'Success', description: 'AI Quest deleted' });
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting AI quest:', error);
+      toast({ title: 'Error', description: error?.message || 'Failed to delete AI quest', variant: 'destructive' });
+    }
+  };
+
   const updateSubmissionStatus = async (submissionId: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('Submissions')
-        .update({ status })
-        .eq('id', submissionId);
+      if (status === 'rejected') {
+        // When rejecting: delete related assets and records
+        const { data: sub } = await supabase.from('Submissions').select('*').eq('id', submissionId).single();
+        const keysToRemove: string[] = [];
+        const collectKey = (url?: string | null) => {
+          if (!url) return;
+          try {
+            const u = new URL(url);
+            // Expect format .../storage/v1/object/public/quest-submissions/<path>
+            const parts = u.pathname.split('/object/public/');
+            if (parts[1]) keysToRemove.push(parts[1].replace(/^quest-submissions\//, ''));
+          } catch {}
+        };
+        collectKey(sub?.photo_url);
+        (sub?.image_urls || []).forEach((u: string) => collectKey(u));
 
-      if (error) throw error;
+        if (keysToRemove.length > 0) {
+          await supabase.storage.from('quest-submissions').remove(keysToRemove);
+        }
 
-      toast({ title: 'Success', description: 'Submission status updated' });
-      fetchData();
+        await Promise.all([
+          supabase.from('post_likes').delete().eq('submission_id', submissionId),
+          supabase.from('post_comments').delete().eq('submission_id', submissionId),
+          supabase.from('post_shares').delete().eq('submission_id', submissionId)
+        ]);
+
+        const { error: delErr } = await supabase.from('Submissions').delete().eq('id', submissionId);
+        if (delErr) throw delErr;
+        toast({ title: 'Submission rejected', description: 'Submission and assets deleted' });
+        // Also remove from feed tables if mirrored anywhere custom (no-op here)
+      } else {
+        const { error } = await supabase
+          .from('Submissions')
+          .update({ status })
+          .eq('id', submissionId);
+        if (error) throw error;
+        toast({ title: 'Success', description: 'Submission status updated' });
+      }
+      await fetchData();
+      // Broadcast an event so the Community page can refresh if open
+      window.dispatchEvent(new CustomEvent('submissions-changed'));
     } catch (error) {
       console.error('Error updating submission:', error);
       toast({
@@ -273,20 +427,24 @@ export const AdminPanel = () => {
   const updateUserRole = async (userId: string, newRole: 'admin' | 'moderator' | 'user') => {
     try {
       // First, remove existing role for this user
-      await supabase
+      const deleteRes = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', userId);
 
+      if (deleteRes.error) throw deleteRes.error;
+
       // Then add the new role (only if not 'user' since 'user' is default)
       if (newRole !== 'user') {
-        const { error } = await supabase
+        const insertRes = await supabase
           .from('user_roles')
           .insert({ user_id: userId, role: newRole });
 
-        if (error) throw error;
+        if (insertRes.error) throw insertRes.error;
       }
 
+      // Optimistically update UI
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, current_role: newRole } : u)));
       toast({ title: 'Success', description: `User role updated to ${newRole}` });
       await fetchUsersWithRoles(); // Refresh users list
     } catch (error) {
@@ -301,11 +459,35 @@ export const AdminPanel = () => {
 
   const deleteCommunityPost = async (postId: string) => {
     try {
+      // Fetch to collect images
+      const { data: post } = await supabase.from('community_posts').select('*').eq('id', postId).single();
+      const keysToRemove: string[] = [];
+      const collectKey = (url?: string | null) => {
+        if (!url) return;
+        try {
+          const u = new URL(url);
+          const parts = u.pathname.split('/object/public/');
+          if (parts[1]) keysToRemove.push(parts[1].replace(/^community-images\//, ''));
+        } catch {}
+      };
+      (post?.image_urls || []).forEach((u: string) => collectKey(u));
+
+      await Promise.all([
+        supabase.from('community_post_likes').delete().eq('post_id', postId),
+        supabase.from('community_post_comments').delete().eq('post_id', postId)
+      ]);
+
       const { error } = await supabase.from('community_posts').delete().eq('id', postId);
       if (error) throw error;
 
+      if (keysToRemove.length > 0) {
+        await supabase.storage.from('community-images').remove(keysToRemove);
+      }
+
       toast({ title: 'Success', description: 'Community post deleted successfully' });
-      fetchData();
+      await fetchData();
+      // Inform other views to refresh (profile grid, crew feed)
+      window.dispatchEvent(new CustomEvent('community-posts-changed'));
     } catch (error) {
       console.error('Error deleting community post:', error);
       toast({
@@ -394,103 +576,207 @@ export const AdminPanel = () => {
                     <CardTitle>Quest Management</CardTitle>
                     <CardDescription>Create and manage quests</CardDescription>
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Quest
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Create New Quest</DialogTitle>
-                        <DialogDescription>Add a new quest for users to complete</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <Input
-                          placeholder="Quest title"
-                          value={newQuest.title}
-                          onChange={(e) => setNewQuest({ ...newQuest, title: e.target.value })}
-                        />
-                        <Textarea
-                          placeholder="Quest description"
-                          value={newQuest.description}
-                          onChange={(e) => setNewQuest({ ...newQuest, description: e.target.value })}
-                        />
-                        <Select 
-                          value={newQuest.quest_type || ""} 
-                          onValueChange={(value) => setNewQuest({ ...newQuest, quest_type: value })}
-                        >
-                          <SelectTrigger className="z-50">
-                            <SelectValue placeholder="Select quest type" />
-                          </SelectTrigger>
-                          <SelectContent className="z-[100] bg-popover border shadow-lg">
-                            <SelectItem value="photography">Photography</SelectItem>
-                            <SelectItem value="nature">Nature</SelectItem>
-                            <SelectItem value="history">History</SelectItem>
-                            <SelectItem value="science">Science</SelectItem>
-                            <SelectItem value="community">Community</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          placeholder="Location"
-                          value={newQuest.location}
-                          onChange={(e) => setNewQuest({ ...newQuest, location: e.target.value })}
-                        />
-                        <Select 
-                          value={newQuest.difficulty?.toString() || "1"} 
-                          onValueChange={(value) => setNewQuest({ ...newQuest, difficulty: parseInt(value) })}
-                        >
-                          <SelectTrigger className="z-50">
-                            <SelectValue placeholder="Select difficulty" />
-                          </SelectTrigger>
-                          <SelectContent className="z-[100] bg-popover border shadow-lg">
-                            <SelectItem value="1">1 Star</SelectItem>
-                            <SelectItem value="2">2 Stars</SelectItem>
-                            <SelectItem value="3">3 Stars</SelectItem>
-                            <SelectItem value="4">4 Stars</SelectItem>
-                            <SelectItem value="5">5 Stars</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button onClick={createQuest} className="w-full">Create Quest</Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Flag className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Regular</span>
+                      <Switch
+                        checked={showAiQuests}
+                        onCheckedChange={setShowAiQuests}
+                        className="data-[state=checked]:bg-blue-600"
+                      />
+                      <span className="text-sm">AI Generated</span>
+                      <Bot className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create {showAiQuests ? 'AI Quest' : 'Quest'}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Create New {showAiQuests ? 'AI Quest' : 'Quest'}</DialogTitle>
+                          <DialogDescription>Add a new {showAiQuests ? 'AI-generated quest' : 'quest'} for users to complete</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <Input
+                            placeholder="Quest title"
+                            value={showAiQuests ? newAiQuest.title : newQuest.title}
+                            onChange={(e) => showAiQuests 
+                              ? setNewAiQuest({ ...newAiQuest, title: e.target.value })
+                              : setNewQuest({ ...newQuest, title: e.target.value })
+                            }
+                          />
+                          <Textarea
+                            placeholder="Quest description"
+                            value={showAiQuests ? newAiQuest.description : newQuest.description}
+                            onChange={(e) => showAiQuests
+                              ? setNewAiQuest({ ...newAiQuest, description: e.target.value })
+                              : setNewQuest({ ...newQuest, description: e.target.value })
+                            }
+                          />
+                          <Select 
+                            value={showAiQuests ? (newAiQuest.quest_type || "") : (newQuest.quest_type || "")}
+                            onValueChange={(value) => showAiQuests
+                              ? setNewAiQuest({ ...newAiQuest, quest_type: value })
+                              : setNewQuest({ ...newQuest, quest_type: value })
+                            }
+                          >
+                            <SelectTrigger className="z-50">
+                              <SelectValue placeholder="Select quest type" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[100] bg-popover border shadow-lg">
+                              <SelectItem value="photography">Photography</SelectItem>
+                              <SelectItem value="nature">Nature</SelectItem>
+                              <SelectItem value="history">History</SelectItem>
+                              <SelectItem value="science">Science</SelectItem>
+                              <SelectItem value="community">Community</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            placeholder="Location"
+                            value={showAiQuests ? newAiQuest.location : newQuest.location}
+                            onChange={(e) => showAiQuests
+                              ? setNewAiQuest({ ...newAiQuest, location: e.target.value })
+                              : setNewQuest({ ...newQuest, location: e.target.value })
+                            }
+                          />
+                          {showAiQuests && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input
+                                placeholder="Latitude (optional)"
+                                type="number"
+                                step="any"
+                                value={newAiQuest.latitude?.toString() || ''}
+                                onChange={(e) => setNewAiQuest({ 
+                                  ...newAiQuest, 
+                                  latitude: e.target.value ? parseFloat(e.target.value) : null 
+                                })}
+                              />
+                              <Input
+                                placeholder="Longitude (optional)"
+                                type="number"
+                                step="any"
+                                value={newAiQuest.longitude?.toString() || ''}
+                                onChange={(e) => setNewAiQuest({ 
+                                  ...newAiQuest, 
+                                  longitude: e.target.value ? parseFloat(e.target.value) : null 
+                                })}
+                              />
+                            </div>
+                          )}
+                          <Select 
+                            value={showAiQuests ? (newAiQuest.difficulty?.toString() || "1") : (newQuest.difficulty?.toString() || "1")}
+                            onValueChange={(value) => showAiQuests
+                              ? setNewAiQuest({ ...newAiQuest, difficulty: parseInt(value) })
+                              : setNewQuest({ ...newQuest, difficulty: parseInt(value) })
+                            }
+                          >
+                            <SelectTrigger className="z-50">
+                              <SelectValue placeholder="Select difficulty" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[100] bg-popover border shadow-lg">
+                              <SelectItem value="1">1 Star</SelectItem>
+                              <SelectItem value="2">2 Stars</SelectItem>
+                              <SelectItem value="3">3 Stars</SelectItem>
+                              <SelectItem value="4">4 Stars</SelectItem>
+                              <SelectItem value="5">5 Stars</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            onClick={showAiQuests ? createAiQuest : createQuest} 
+                            className="w-full"
+                          >
+                            Create {showAiQuests ? 'AI Quest' : 'Quest'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {quests.map((quest) => (
-                    <div key={quest.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{quest.title}</h3>
-                        <p className="text-sm text-muted-foreground">{quest.description}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant={quest.is_active ? 'default' : 'secondary'}>
-                            {quest.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                          <Badge variant="outline">{quest.quest_type}</Badge>
-                          <span className="text-sm text-muted-foreground">Difficulty: {quest.difficulty}</span>
+                  {showAiQuests ? (
+                    aiQuests.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No AI-generated quests found</p>
+                      </div>
+                    ) : (
+                      aiQuests.map((quest) => (
+                        <div key={quest.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{quest.title}</h3>
+                              <Sparkles className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <p className="text-sm text-muted-foreground">{quest.description}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant={quest.is_active ? 'default' : 'secondary'}>
+                                {quest.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                              <Badge variant="outline">{quest.quest_type}</Badge>
+                              <span className="text-sm text-muted-foreground">Difficulty: {quest.difficulty}</span>
+                              {quest.latitude && quest.longitude && (
+                                <Badge variant="secondary" className="text-xs">GPS: {quest.latitude.toFixed(4)}, {quest.longitude.toFixed(4)}</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingAiQuest(quest)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteAiQuest(quest.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )
+                  ) : (
+                    quests.map((quest) => (
+                      <div key={quest.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{quest.title}</h3>
+                          <p className="text-sm text-muted-foreground">{quest.description}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant={quest.is_active ? 'default' : 'secondary'}>
+                              {quest.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge variant="outline">{quest.quest_type}</Badge>
+                            <span className="text-sm text-muted-foreground">Difficulty: {quest.difficulty}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingQuest(quest)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteQuest(quest.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingQuest(quest)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteQuest(quest.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -508,9 +794,9 @@ export const AdminPanel = () => {
                     <div key={submission.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h3 className="font-semibold">Submission {submission.id.slice(0, 8)}</h3>
+                          <h3 className="font-semibold">Submission {(submission.id?.slice(0, 8)) ?? 'unknown'}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Quest: {submission.quest_id.slice(0, 8)} • {new Date(submission.submitted_at).toLocaleDateString()}
+                            Quest: {(submission.quest_id?.slice(0, 8)) ?? 'N/A'} • {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : '—'}
                           </p>
                         </div>
                         <Badge
@@ -745,15 +1031,24 @@ export const AdminPanel = () => {
 
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Quests</CardTitle>
-                  <Flag className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{quests.length}</div>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Available Quests (User-Specific)</CardTitle>
+                    <Flag className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {user ? 
+                        aiQuests.filter(q => q.user_id === user.id && q.is_active).length + 
+                        quests.filter(q => q.is_active).length
+                        : quests.filter(q => q.is_active).length
+                      }
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {quests.filter(q => q.is_active).length} regular + {user ? aiQuests.filter(q => q.user_id === user.id && q.is_active).length : 0} AI quests
+                    </p>
+                  </CardContent>
+                </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -801,6 +1096,98 @@ export const AdminPanel = () => {
             <RecalculateAllPoints />
           </TabsContent>
         </Tabs>
+
+        {/* Edit AI Quest Dialog */}
+        {editingAiQuest && (
+          <Dialog open={!!editingAiQuest} onOpenChange={() => setEditingAiQuest(null)}>
+            <DialogContent className="max-w-md z-[100]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-blue-600" />
+                  Edit AI Quest
+                </DialogTitle>
+                <DialogDescription>Update AI-generated quest details</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Quest title"
+                  value={editingAiQuest.title || ""}
+                  onChange={(e) => setEditingAiQuest({ ...editingAiQuest, title: e.target.value })}
+                />
+                <Textarea
+                  placeholder="Quest description"
+                  value={editingAiQuest.description || ""}
+                  onChange={(e) => setEditingAiQuest({ ...editingAiQuest, description: e.target.value })}
+                />
+                <Select 
+                  value={editingAiQuest.quest_type || ""} 
+                  onValueChange={(value) => setEditingAiQuest({ ...editingAiQuest, quest_type: value })}
+                >
+                  <SelectTrigger className="z-50">
+                    <SelectValue placeholder="Select quest type" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100] bg-popover border shadow-lg">
+                    <SelectItem value="photography">Photography</SelectItem>
+                    <SelectItem value="nature">Nature</SelectItem>
+                    <SelectItem value="history">History</SelectItem>
+                    <SelectItem value="science">Science</SelectItem>
+                    <SelectItem value="community">Community</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Location"
+                  value={editingAiQuest.location || ""}
+                  onChange={(e) => setEditingAiQuest({ ...editingAiQuest, location: e.target.value })}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Latitude (optional)"
+                    type="number"
+                    step="any"
+                    value={editingAiQuest.latitude?.toString() || ''}
+                    onChange={(e) => setEditingAiQuest({ 
+                      ...editingAiQuest, 
+                      latitude: e.target.value ? parseFloat(e.target.value) : null 
+                    })}
+                  />
+                  <Input
+                    placeholder="Longitude (optional)"
+                    type="number"
+                    step="any"
+                    value={editingAiQuest.longitude?.toString() || ''}
+                    onChange={(e) => setEditingAiQuest({ 
+                      ...editingAiQuest, 
+                      longitude: e.target.value ? parseFloat(e.target.value) : null 
+                    })}
+                  />
+                </div>
+                <Select 
+                  value={editingAiQuest.difficulty?.toString() || "1"} 
+                  onValueChange={(value) => setEditingAiQuest({ ...editingAiQuest, difficulty: parseInt(value) })}
+                >
+                  <SelectTrigger className="z-50">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100] bg-popover border shadow-lg">
+                    <SelectItem value="1">1 Star</SelectItem>
+                    <SelectItem value="2">2 Stars</SelectItem>
+                    <SelectItem value="3">3 Stars</SelectItem>
+                    <SelectItem value="4">4 Stars</SelectItem>
+                    <SelectItem value="5">5 Stars</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={editingAiQuest.is_active}
+                    onCheckedChange={(checked) => setEditingAiQuest({ ...editingAiQuest, is_active: checked })}
+                  />
+                  <span className="text-sm">Quest is active</span>
+                </div>
+                <Button onClick={updateAiQuest} className="w-full">Update AI Quest</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {/* Edit Quest Dialog */}
         {editingQuest && (

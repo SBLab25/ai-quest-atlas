@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, User, Trophy, MapPin, Edit3, Save, X, Calendar, Target, Grid3X3, History, Sparkles } from 'lucide-react';
+import { ArrowLeft, User, Trophy, MapPin, Edit3, Save, X, Calendar, Target, Grid3X3, History, Sparkles, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { StreakDisplay } from '@/components/streak/StreakDisplay';
@@ -45,6 +45,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -168,6 +169,213 @@ const Profile = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAutoDetectLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location not supported",
+        description: "Your browser doesn't support location services",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setDetectingLocation(true);
+
+    try {
+      // Clear any cached location data by requesting multiple times with increasing accuracy
+      let bestPosition: GeolocationPosition | null = null;
+      let bestAccuracy = Infinity;
+      
+      // Try up to 3 times to get the most accurate location
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`Location attempt ${attempt}/3...`);
+          
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            const options = {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0 // Force fresh location each time
+            };
+
+            navigator.geolocation.getCurrentPosition(resolve, reject, options);
+          });
+
+          const { accuracy } = position.coords;
+          console.log(`Attempt ${attempt}: Accuracy ${accuracy}m`);
+          
+          // Keep the most accurate position
+          if (accuracy < bestAccuracy) {
+            bestPosition = position;
+            bestAccuracy = accuracy;
+          }
+          
+          // If we get very good accuracy (under 50m), use it immediately
+          if (accuracy < 50) {
+            console.log('High accuracy achieved, using this location');
+            break;
+          }
+          
+          // Wait briefly between attempts
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+        } catch (attemptError) {
+          console.log(`Attempt ${attempt} failed:`, attemptError);
+          if (attempt === 3) throw attemptError; // Only throw on final attempt
+        }
+      }
+
+      if (!bestPosition) {
+        throw new Error('All location attempts failed');
+      }
+
+      const { latitude, longitude, accuracy } = bestPosition.coords;
+      
+      console.log(`Final coordinates: ${latitude}, ${longitude} (accuracy: ${accuracy}m)`);
+      
+      // Warn if accuracy is still poor
+      if (accuracy > 1000) {
+        toast({
+          title: "Low accuracy warning",
+          description: `Location accuracy is ±${Math.round(accuracy)}m. For better results, try moving to an open area with clear sky view.`,
+          variant: "destructive"
+        });
+      }
+      
+      // Try multiple geocoding services for better accuracy
+      let address = await getReverseGeocodedAddress(latitude, longitude);
+      
+      if (!address) {
+        address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      }
+
+      // Update form data
+      setFormData({
+        ...formData,
+        location: address
+      });
+
+      // Also save directly to database with coordinates (using correct column names)
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          location: address,
+          latitude: latitude,
+          longitude: longitude,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user?.id);
+
+      if (error) {
+        console.error('Database error:', error);
+        // Still show success for location detection even if DB save fails
+        toast({
+          title: "Location detected",
+          description: `Location: ${address}\nAccuracy: ±${Math.round(accuracy)}m\nNote: Database save failed, please update manually`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Location updated successfully",
+          description: `Location: ${address}\nAccuracy: ±${Math.round(accuracy)}m`,
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Geolocation error:', error);
+      
+      let message = "Unable to get your location";
+      let description = "";
+      
+      if (error.code === 1) {
+        message = "Location access denied";
+        description = "Please enable location permissions in your browser and try again.";
+      } else if (error.code === 2) {
+        message = "Location unavailable";
+        description = "Your device couldn't determine your location. Please check your GPS settings and try from an open area.";
+      } else if (error.code === 3) {
+        message = "Location request timed out";
+        description = "The location request took too long. Please try again from an open area with clear sky view.";
+      }
+
+      toast({
+        title: message,
+        description: description,
+        variant: "destructive"
+      });
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
+  // Improved reverse geocoding with multiple services
+  const getReverseGeocodedAddress = async (lat: number, lng: number): Promise<string | null> => {
+    const services = [
+      // Primary: OpenStreetMap Nominatim (more detailed for Indian locations)
+      {
+        name: 'Nominatim',
+        url: `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=16`,
+        headers: { 'User-Agent': 'DiscoveryAtlas/1.0' }
+      },
+      // Fallback: Alternative Nominatim instance
+      {
+        name: 'Nominatim Alt',
+        url: `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=14`,
+        headers: { 'User-Agent': 'DiscoveryAtlas/1.0' }
+      }
+    ];
+
+    for (const service of services) {
+      try {
+        console.log(`Trying ${service.name} for reverse geocoding...`);
+        
+        const response = await fetch(service.url, {
+          headers: service.headers,
+          method: 'GET'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data && data.display_name) {
+            console.log(`${service.name} result:`, data.display_name);
+            
+            // For Indian locations, try to construct a better address
+            if (data.address) {
+              const parts = [];
+              
+              // Add specific location details
+              if (data.address.village) parts.push(data.address.village);
+              if (data.address.town) parts.push(data.address.town);
+              if (data.address.city) parts.push(data.address.city);
+              if (data.address.state_district && !parts.includes(data.address.state_district)) {
+                parts.push(data.address.state_district);
+              }
+              if (data.address.state) parts.push(data.address.state);
+              if (data.address.country) parts.push(data.address.country);
+              
+              if (parts.length > 0) {
+                const constructedAddress = parts.join(', ');
+                console.log('Constructed address:', constructedAddress);
+                return constructedAddress;
+              }
+            }
+            
+            return data.display_name;
+          }
+        }
+      } catch (error) {
+        console.log(`${service.name} failed:`, error);
+        continue;
+      }
+    }
+    
+    console.log('All geocoding services failed');
+    return null;
   };
 
   const handleCancel = () => {
@@ -422,12 +630,37 @@ const Profile = () => {
                         Location
                       </label>
                       {isEditing ? (
-                        <Input
-                          value={formData.location}
-                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                          placeholder="Enter your location"
-                          className="transition-all duration-200 focus:scale-[1.02]"
-                        />
+                        <div className="space-y-2">
+                          <Input
+                            value={formData.location}
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            placeholder="Enter your location"
+                            className="transition-all duration-200 focus:scale-[1.02]"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleAutoDetectLocation}
+                            disabled={detectingLocation}
+                            className="w-full"
+                          >
+                            {detectingLocation ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                                Getting precise location...
+                              </>
+                            ) : (
+                              <>
+                                <Navigation className="h-4 w-4 mr-2" />
+                                Auto-Detect My Location
+                              </>
+                            )}
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Uses high-accuracy GPS and detailed address lookup
+                          </p>
+                        </div>
                       ) : (
                         <p className="mt-1 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                           {profile?.location || 'Not set'}

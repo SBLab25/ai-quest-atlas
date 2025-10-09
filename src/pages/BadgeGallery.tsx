@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar, Coins, Award, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar as CalendarIcon, Coins, Award, RefreshCw } from 'lucide-react';
+import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { addNewBadges } from '@/utils/addNewBadges';
@@ -36,7 +37,8 @@ const BadgeGallery = () => {
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [allBadges, setAllBadges] = useState<BadgeData[]>([]);
   const [loading, setLoading] = useState(true);
-  const { points, loading: pointsLoading, recalculatePoints } = usePoints();
+  const { points, loading: pointsLoading, recalculatePoints, getPointsHistory } = usePoints();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
   // Initialize badge awarding system
   useBadgeAwarding();
@@ -90,15 +92,31 @@ const BadgeGallery = () => {
 
       if (earnedError) throw earnedError;
 
-      // Fetch all available badges
+      // Fetch all available badges and de-duplicate by name
       const { data: badges, error: badgesError } = await supabase
         .from('Badges')
-        .select('*');
+        .select('*')
+        .order('name', { ascending: true });
 
       if (badgesError) throw badgesError;
 
-      setUserBadges(earnedBadges || []);
-      setAllBadges(badges || []);
+      const deduped = (badges || []).reduce((acc: Record<string, BadgeData>, b: any) => {
+        acc[(b.name || '').trim().toLowerCase()] = b;
+        return acc;
+      }, {});
+      const uniqueBadges = Object.values(deduped) as BadgeData[];
+
+      // Deduplicate earned badges by badge_id (keep most recent)
+      const earnedMap = new Map<string, UserBadge>();
+      (earnedBadges || []).forEach((eb: any) => {
+        const existing = earnedMap.get(eb.badge_id);
+        if (!existing || new Date(eb.earned_at) > new Date(existing.earned_at)) {
+          earnedMap.set(eb.badge_id, eb as UserBadge);
+        }
+      });
+
+      setUserBadges(Array.from(earnedMap.values()));
+      setAllBadges(uniqueBadges);
     } catch (error) {
       console.error('Error fetching badges:', error);
       toast({
@@ -209,7 +227,7 @@ const BadgeGallery = () => {
                   <Trophy className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold">{userBadges.length}</p>
+                  <p className="text-3xl font-bold">{new Set(userBadges.map(b => b.badge_id)).size}</p>
                   <p className="text-sm text-muted-foreground">Earned Badges</p>
                 </div>
               </div>
@@ -238,7 +256,7 @@ const BadgeGallery = () => {
                 </div>
                 <div>
                   <p className="text-3xl font-bold">
-                    {Math.round((userBadges.length / Math.max(allBadges.length, 1)) * 100)}%
+                    {Math.round((new Set(userBadges.map(b => b.badge_id)).size / Math.max(allBadges.length, 1)) * 100)}%
                   </p>
                   <p className="text-sm text-muted-foreground">Collection Rate</p>
                 </div>
@@ -258,6 +276,7 @@ const BadgeGallery = () => {
                 </CardTitle>
                 <CardDescription>How you've earned your points</CardDescription>
               </div>
+              <div className="flex items-center gap-2">
               <Button 
                 onClick={handleRecalculatePoints} 
                 variant="outline" 
@@ -268,6 +287,10 @@ const BadgeGallery = () => {
                 <RefreshCw className={`h-4 w-4 ${pointsLoading ? 'animate-spin' : ''}`} />
                 Recalculate
               </Button>
+              <Button variant="ghost" size="icon" onClick={() => setCalendarOpen(v => !v)} title="Points calendar">
+                <CalendarIcon className="h-5 w-5" />
+              </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -295,6 +318,18 @@ const BadgeGallery = () => {
             </div>
           </CardContent>
         </Card>
+
+        {calendarOpen && (
+          <div className="relative mb-8">
+            <div className="absolute right-0 z-50 w-[360px] sm:w-[420px] bg-popover border rounded-xl shadow-2xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Points Calendar</p>
+                <Button size="sm" variant="ghost" onClick={() => setCalendarOpen(false)}>Close</Button>
+              </div>
+              <PointsCalendar history={getPointsHistory()} />
+            </div>
+          </div>
+        )}
 
         {/* Earned Badges */}
         {userBadges.length > 0 && (
@@ -414,3 +449,35 @@ const BadgeGallery = () => {
 };
 
 export default BadgeGallery;
+
+function PointsCalendar({ history }: { history: Record<string, { total: number; daily: number; quest: number; exercise: number; streak: number; }> }) {
+  const [month, setMonth] = useState<Date>(new Date());
+  const getTitle = (date: Date) => {
+    const key = date.toISOString().slice(0,10);
+    const h = history[key];
+    if (!h) return undefined;
+    return `Total: ${h.total}\nDaily: +${h.daily}\nQuests: +${h.quest}\nExercise: +${h.exercise}\nStreak: +${h.streak}`;
+  };
+  return (
+    <div>
+      <DayPickerCalendar
+        month={month}
+        onMonthChange={setMonth}
+        showOutsideDays
+      />
+      <div className="grid grid-cols-7 gap-1 mt-2 text-xs text-muted-foreground">
+        {Array.from({ length: 42 }).map((_, idx) => {
+          const first = new Date(month.getFullYear(), month.getMonth(), 1);
+          const dayOfWeek = first.getDay();
+          const date = new Date(first);
+          date.setDate(1 - dayOfWeek + idx);
+          const title = getTitle(date);
+          const isCurrent = date.getMonth() === month.getMonth();
+          return (
+            <div key={idx} title={title} className={`h-6 rounded ${title ? 'bg-primary/10' : 'bg-transparent'} ${isCurrent ? '' : 'opacity-40'}`}></div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

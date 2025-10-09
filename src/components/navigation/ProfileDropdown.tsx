@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AccountSettingsModal } from "@/components/settings/AccountSettingsModal";
 import { User, Settings, LogOut, Shield, BarChart } from "lucide-react";
 
 export const ProfileDropdown = () => {
@@ -19,6 +20,7 @@ export const ProfileDropdown = () => {
   const navigate = useNavigate();
   const { isAdmin } = useRole();
   const [profile, setProfile] = useState<{ username?: string; full_name?: string; avatar_url?: string } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -73,7 +75,7 @@ export const ProfileDropdown = () => {
           <User className="mr-2 h-4 w-4" />
           View Profile
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
           <Settings className="mr-2 h-4 w-4" />
           Account Settings
         </DropdownMenuItem>
@@ -93,6 +95,11 @@ export const ProfileDropdown = () => {
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
+      
+      <AccountSettingsModal 
+        open={settingsOpen} 
+        onOpenChange={setSettingsOpen} 
+      />
     </DropdownMenu>
   );
 };

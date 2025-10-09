@@ -8,8 +8,13 @@ export const getISTDate = (date?: Date): Date => {
 };
 
 export const getISTDateString = (date?: Date): string => {
-  const istDate = getISTDate(date);
-  return istDate.toISOString().split('T')[0];
+  const currentDate = date || new Date();
+  const istDate = toZonedTime(currentDate, IST_TIMEZONE);
+  // Get just the date part in IST timezone
+  const year = istDate.getFullYear();
+  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+  const day = String(istDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export const isNewDayInIST = (lastVisitDate: string | null): boolean => {

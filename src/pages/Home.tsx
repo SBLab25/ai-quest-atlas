@@ -41,37 +41,63 @@ const Home = () => {
   const [featuredQuest, setFeaturedQuest] = useState<Quest | null>(null);
   const [loading, setLoading] = useState(true);
   const [featuredQuestIndex, setFeaturedQuestIndex] = useState(0);
+  const [availableCount, setAvailableCount] = useState<number>(0);
 
   useEffect(() => {
     trackPageView('/home');
     
     const fetchQuests = async () => {
       try {
-        // Fetch both regular and AI generated quests
-        const [regularQuestsRes, aiQuestsRes] = await Promise.all([
-          supabase
-            .from("Quests")
-            .select("*")
-            .eq("is_active", true)
-            .order("created_at", { ascending: false }),
-          supabase
+        // Fetch regular quests
+        const { data: regularQuests, error: regularError } = await supabase
+          .from("Quests")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (regularError) throw regularError;
+
+        // Fetch AI-generated quests only if user is logged in
+        let aiQuests = [];
+        if (user) {
+          const { data: aiData, error: aiError } = await supabase
             .from("ai_generated_quests")
             .select("*")
             .eq("is_active", true)
-            .order("created_at", { ascending: false })
-        ]);
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+          
+          if (aiError) {
+            console.error("Error fetching AI quests:", aiError);
+            // Don't throw, just log - AI quests are optional
+          } else {
+            aiQuests = aiData || [];
+          }
+        }
 
-        if (regularQuestsRes.error) throw regularQuestsRes.error;
-        if (aiQuestsRes.error) throw aiQuestsRes.error;
-
-        // Combine both quest types
+        // Combine both quest types for listing
         const combinedQuests = [
-          ...(regularQuestsRes.data || []),
-          ...(aiQuestsRes.data || [])
+          ...(regularQuests || []),
+          ...aiQuests
         ];
 
         setAllQuests(combinedQuests);
         setQuests(combinedQuests);
+
+        // Compute user-specific available count (exclude user's submitted/finished quests)
+        let completedIds = new Set<string>();
+        if (user) {
+          const { data: subs } = await supabase
+            .from('Submissions')
+            .select('quest_id')
+            .eq('user_id', user.id);
+          subs?.forEach((s: any) => completedIds.add(s.quest_id));
+        }
+
+        const regularAvailable = (regularQuests || []).filter((q: any) => !completedIds.has(q.id));
+        const aiAvailable = aiQuests.filter((q: any) => !completedIds.has(q.id));
+        setAvailableCount(regularAvailable.length + aiAvailable.length);
+
         // Set first quest as featured
         if (combinedQuests.length > 0) {
           setFeaturedQuest(combinedQuests[0]);
@@ -89,7 +115,7 @@ const Home = () => {
     };
 
     fetchQuests();
-  }, [toast, trackPageView]);
+  }, [toast, trackPageView, user]);
 
   // Rotate featured quest every 30 seconds
   useEffect(() => {
@@ -173,8 +199,8 @@ const Home = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-blue-800 dark:text-blue-200">{loading ? "..." : quests.length}</div>
-                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">Ready to explore</p>
+                  <div className="text-3xl font-bold text-blue-800 dark:text-blue-200">{loading ? "..." : availableCount}</div>
+                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">User-specific total</p>
                 </CardContent>
               </Card>
               

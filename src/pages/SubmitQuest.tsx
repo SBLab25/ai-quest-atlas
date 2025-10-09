@@ -24,6 +24,7 @@ const SubmitQuest = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [quest, setQuest] = useState<Quest | null>(null);
+  const [isAIQuest, setIsAIQuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -45,6 +46,7 @@ const SubmitQuest = () => {
         // First try to fetch from regular Quests table
         let questData = null;
         let error = null;
+        let foundInAI = false;
         
         const { data: regularQuestData, error: regularQuestError } = await supabase
           .from("Quests")
@@ -64,6 +66,7 @@ const SubmitQuest = () => {
 
           if (aiQuestData) {
             questData = aiQuestData;
+            foundInAI = true;
           } else {
             error = aiQuestError || regularQuestError;
           }
@@ -74,22 +77,25 @@ const SubmitQuest = () => {
         }
         
         setQuest(questData);
+        setIsAIQuest(foundInAI);
 
-        // Check if user has already submitted
-        const { data: existingSubmission } = await supabase
-          .from("Submissions")
-          .select("id")
-          .eq("quest_id", id)
-          .eq("user_id", user.id)
-          .maybeSingle();
+        // Check if user has already submitted (only for regular quests)
+        if (!foundInAI) {
+          const { data: existingSubmission } = await supabase
+            .from("Submissions")
+            .select("id")
+            .eq("quest_id", id)
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-        if (existingSubmission) {
-          toast({
-            title: "Already Submitted",
-            description: "You have already submitted for this quest.",
-            variant: "destructive",
-          });
-          navigate(`/quest/${id}`);
+          if (existingSubmission) {
+            toast({
+              title: "Already Submitted",
+              description: "You have already submitted for this quest.",
+              variant: "destructive",
+            });
+            navigate(`/quest/${id}`);
+          }
         }
       } catch (error) {
         console.error("Error fetching quest:", error);
@@ -218,25 +224,59 @@ const SubmitQuest = () => {
       }
 
       // Create submission
-      const { error: submitError } = await supabase
+      const payload: any = {
+        user_id: user.id,
+        description: description.trim(),
+        photo_url: photoUrl,
+        geo_location: geoLocation.trim() || null,
+        status: 'pending',
+        quest_id: isAIQuest ? null : quest.id,
+      };
+
+      const { data: submission, error: submitError } = await supabase
         .from("Submissions")
-        .insert({
-          quest_id: quest.id,
-          user_id: user.id,
-          description: description.trim(),
-          photo_url: photoUrl,
-          geo_location: geoLocation.trim() || null,
-          status: 'pending'
-        });
+        .insert(payload)
+        .select()
+        .single();
 
       if (submitError) throw submitError;
+
+      // Auto-complete for all user's teams if this is a regular quest (not AI)
+      if (!isAIQuest && quest.id) {
+        try {
+          // Get user's teams
+          const { data: userTeams } = await (supabase as any)
+            .from('team_members')
+            .select('team_id')
+            .eq('user_id', user.id);
+
+          if (userTeams && userTeams.length > 0) {
+            // Create team completions for each team (ignore duplicates)
+            const teamCompletions = userTeams.map((tm: any) => ({
+              team_id: tm.team_id,
+              quest_id: quest.id,
+              completed_by: user.id
+            }));
+
+            // Insert team completions (use upsert to handle duplicates)
+            await (supabase as any)
+              .from('team_quest_completions')
+              .upsert(teamCompletions, { onConflict: 'team_id,quest_id' });
+
+            console.log(`Quest marked complete for ${userTeams.length} teams`);
+          }
+        } catch (teamError) {
+          // Don't fail the submission if team updates fail
+          console.error('Error updating team completions:', teamError);
+        }
+      }
 
       toast({
         title: "Quest Submitted!",
         description: "Your submission has been sent for review. You'll be notified once it's verified.",
       });
 
-      navigate(`/quest/${quest.id}`);
+      navigate(isAIQuest ? '/home' : `/quest/${quest.id}`);
     } catch (error) {
       console.error("Error submitting quest:", error);
       toast({
@@ -276,7 +316,7 @@ const SubmitQuest = () => {
         <div className="mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate(`/quest/${id}`)}
+            onClick={() => (isAIQuest ? navigate('/home') : navigate(`/quest/${id}`))}
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

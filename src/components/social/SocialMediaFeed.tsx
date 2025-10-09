@@ -339,41 +339,48 @@ export function SocialMediaFeed() {
     <div className="space-y-6">
       {posts.map((post) => (
         <Card key={post.id} className="overflow-hidden">
-          <CardContent className="p-0">
-            {/* Post Header */}
-            <div className="p-4 flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={post.user_profile?.avatar_url || undefined} />
-                <AvatarFallback>
-                  <User className="h-5 w-5" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="font-semibold text-sm">
-                  {post.user_profile?.username || "Anonymous"}
-                </p>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {new Date(post.submitted_at).toLocaleDateString()}
-                  </div>
-                  {post.geo_location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {post.geo_location}
+          <CardContent className="p-4">
+            <div className="flex gap-4">
+              {/* Post Image - Left Side */}
+              <div className="w-80 h-80 flex-shrink-0 relative overflow-hidden rounded-lg">
+                {/* Use new image_urls array if available, fallback to single photo_url */}
+                {(post.photo_urls && post.photo_urls.length > 0) ? (
+                  post.photo_urls.length === 1 ? (
+                    <img
+                      src={post.photo_urls[0]}
+                      alt="Quest submission"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className={`grid gap-1 h-full ${post.photo_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                      {post.photo_urls.slice(0, 3).map((url, index) => (
+                        <div key={index} className={`relative overflow-hidden ${post.photo_urls!.length === 3 && index === 0 ? 'col-span-2' : ''}`}>
+                          <img
+                            src={url}
+                            alt={`Quest submission ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                          {/* Show +N overlay for more than 3 images */}
+                          {index === 2 && post.photo_urls!.length > 3 && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="text-white font-semibold">+{post.photo_urls!.length - 3}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Post Images */}
-            <div className="aspect-square relative">
-              {/* Use new image_urls array if available, fallback to single photo_url */}
-              {(post.photo_urls && post.photo_urls.length > 0) ? (
-                post.photo_urls.length === 1 ? (
+                  )
+                ) : post.photo_url && (
                   <img
-                    src={post.photo_urls[0]}
+                    src={post.photo_url}
                     alt="Quest submission"
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -381,158 +388,102 @@ export function SocialMediaFeed() {
                       target.style.display = 'none';
                     }}
                   />
-                ) : (
-                  <div className={`grid gap-1 h-full ${post.photo_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
-                    {post.photo_urls.slice(0, 3).map((url, index) => (
-                      <div key={index} className={`relative ${post.photo_urls!.length === 3 && index === 0 ? 'col-span-2' : ''}`}>
-                        <img
-                          src={url}
-                          alt={`Quest submission ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                        {/* Show +N overlay for more than 3 images */}
-                        {index === 2 && post.photo_urls!.length > 3 && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-semibold">+{post.photo_urls!.length - 3}</span>
-                          </div>
-                        )}
+                )}
+              </div>
+
+              {/* Post Content - Right Side */}
+              <div className="flex-1 flex flex-col justify-between">
+                {/* Post Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={post.user_profile?.avatar_url || undefined} />
+                    <AvatarFallback>
+                      <User className="h-5 w-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">
+                      {post.user_profile?.username || "Anonymous"}
+                    </p>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(post.submitted_at).toLocaleDateString()}
                       </div>
-                    ))}
+                      {post.geo_location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {post.geo_location}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )
-              ) : post.photo_url && (
-                <img
-                  src={post.photo_url}
-                  alt="Quest submission"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
-              )}
-            </div>
+                </div>
 
-            {/* Post Actions */}
-            <div className="p-4">
-              <div className="flex items-center gap-4 mb-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleLike(post.id)}
-                  className={`p-0 h-auto ${post.user_has_liked ? 'text-red-500' : 'text-muted-foreground'}`}
-                  disabled={!user}
-                >
-                  <Heart className={`h-6 w-6 ${post.user_has_liked ? 'fill-current' : ''}`} />
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleComments(post.id)}
-                  className="p-0 h-auto text-muted-foreground"
-                >
-                  <MessageCircle className="h-6 w-6" />
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleShare(post.id)}
-                  className={`p-0 h-auto ${post.user_has_shared ? 'text-blue-500' : 'text-muted-foreground'}`}
-                  disabled={!user}
-                >
-                  <Share2 className="h-6 w-6" />
-                </Button>
-              </div>
-
-              {/* Stats */}
-              <div className="text-sm space-y-1">
-                {post.likes_count > 0 && (
-                  <p className="font-semibold">
-                    {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
-                  </p>
-                )}
-                
-                {post.description && (
-                  <p>
-                    <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
-                    {post.description}
-                  </p>
-                )}
-
-                {post.comments_count > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleComments(post.id)}
-                    className="p-0 h-auto text-muted-foreground text-sm"
-                  >
-                    View all {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
-                  </Button>
-                )}
-              </div>
-
-              {/* Comments Section */}
-              <Collapsible
-                open={openComments[post.id]}
-                onOpenChange={() => toggleComments(post.id)}
-              >
-                <CollapsibleContent className="space-y-3 mt-3">
-                  {comments[post.id]?.map((comment) => (
-                    <div key={comment.id} className="flex gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={comment.user_profile?.avatar_url || undefined} />
-                        <AvatarFallback>
-                          <User className="h-3 w-3" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm">
-                          <span className="font-semibold">
-                            {comment.user_profile?.username || "Anonymous"}
-                          </span>{" "}
-                          {comment.content}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(comment.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Add Comment */}
-                  {user && (
-                    <div className="flex gap-2 pt-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback>
-                          <User className="h-3 w-3" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 flex gap-2">
-                        <Input
-                          placeholder="Add a comment..."
-                          value={newComment[post.id] || ""}
-                          onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyPress={(e) => e.key === 'Enter' && addComment(post.id)}
-                          className="text-sm"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => addComment(post.id)}
-                          disabled={!newComment[post.id]?.trim()}
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                {/* Post Description */}
+                <div className="flex-1 mb-4">
+                  {post.description && (
+                    <p className="text-sm">
+                      <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
+                      {post.description}
+                    </p>
                   )}
-                </CollapsibleContent>
-              </Collapsible>
+                </div>
+
+                {/* Post Actions */}
+                <div>
+                  <div className="flex items-center gap-4 mb-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleLike(post.id)}
+                      className={`p-0 h-auto ${post.user_has_liked ? 'text-red-500' : 'text-muted-foreground'}`}
+                      disabled={!user}
+                    >
+                      <Heart className={`h-6 w-6 ${post.user_has_liked ? 'fill-current' : ''}`} />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.location.href = `/post/${post.id}`}
+                      className="p-0 h-auto text-muted-foreground"
+                    >
+                      <MessageCircle className="h-6 w-6" />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleShare(post.id)}
+                      className={`p-0 h-auto ${post.user_has_shared ? 'text-blue-500' : 'text-muted-foreground'}`}
+                      disabled={!user}
+                    >
+                      <Share2 className="h-6 w-6" />
+                    </Button>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="text-sm space-y-1">
+                    {post.likes_count > 0 && (
+                      <p className="font-semibold">
+                        {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
+                      </p>
+                    )}
+
+                    {post.comments_count > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.location.href = `/post/${post.id}`}
+                        className="p-0 h-auto text-muted-foreground text-sm"
+                      >
+                        View all {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

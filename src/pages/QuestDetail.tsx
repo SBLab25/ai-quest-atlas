@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Clock, Star, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Star, Users, Crown, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Quest {
@@ -19,6 +19,15 @@ interface Quest {
   created_at: string;
 }
 
+interface TeamCompletion {
+  id: string;
+  team_id: string;
+  completed_by: string;
+  completed_at: string;
+  team_name?: string;
+  completer_username?: string;
+}
+
 const QuestDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -27,10 +36,12 @@ const QuestDetail = () => {
   const [quest, setQuest] = useState<Quest | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [teamCompletions, setTeamCompletions] = useState<TeamCompletion[]>([]);
+  const [userTeams, setUserTeams] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchQuest = async () => {
-      if (!id) return;
+      if (!id || !user) return;
 
       try {
         const { data: questData, error: questError } = await supabase
@@ -43,16 +54,47 @@ const QuestDetail = () => {
         setQuest(questData);
 
         // Check if user has already submitted for this quest
-        if (user) {
-          const { data: submission } = await supabase
-            .from("Submissions")
-            .select("id")
-            .eq("quest_id", id)
-            .eq("user_id", user.id)
-            .maybeSingle();
-          
-          setHasSubmitted(!!submission);
+        const { data: submission } = await supabase
+          .from("Submissions")
+          .select("id")
+          .eq("quest_id", id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        setHasSubmitted(!!submission);
+
+        // Fetch user's teams
+        const { data: userTeamMemberships } = await (supabase as any)
+          .from('team_members')
+          .select(`
+            team_id,
+            role,
+            teams(id, name)
+          `)
+          .eq('user_id', user.id);
+
+        const teams = (userTeamMemberships || []).map((m: any) => ({
+          id: m.team_id,
+          name: m.teams?.name || 'Unknown Team',
+          role: m.role
+        }));
+        setUserTeams(teams);
+
+        // Fetch team completions for this quest
+        if (teams.length > 0) {
+          const teamIds = teams.map(t => t.id);
+          const { data: completions } = await (supabase as any)
+            .from('team_quest_completions')
+            .select(`
+              *,
+              teams(name)
+            `)
+            .eq('quest_id', id)
+            .in('team_id', teamIds);
+
+          setTeamCompletions(completions || []);
         }
+
       } catch (error) {
         console.error("Error fetching quest:", error);
         toast({
@@ -167,7 +209,7 @@ const QuestDetail = () => {
                 <>
                   {hasSubmitted ? (
                     <Button disabled variant="secondary">
-                      <Users className="h-4 w-4 mr-2" />
+                      <CheckCircle className="h-4 w-4 mr-2" />
                       Already Submitted
                     </Button>
                   ) : (
@@ -190,6 +232,52 @@ const QuestDetail = () => {
                 </Button>
               )}
             </div>
+
+            {/* Team Completions */}
+            {userTeams.length > 0 && (
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Team Status
+                </h3>
+                
+                <div className="space-y-3">
+                  {userTeams.map((team) => {
+                    const completion = teamCompletions.find(c => c.team_id === team.id);
+                    return (
+                      <div key={team.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <div className="flex items-center gap-2">
+                          {team.role === 'leader' && (
+                            <Crown className="h-4 w-4 text-yellow-500" />
+                          )}
+                          <span className="font-medium">{team.name}</span>
+                          {completion && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Completed
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {completion ? (
+                          <div className="text-sm text-muted-foreground">
+                            Completed {new Date(completion.completed_at).toLocaleDateString()}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            Not completed yet
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="mt-3 text-sm text-muted-foreground">
+                  💡 When any team member completes this quest, it counts for the whole team!
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

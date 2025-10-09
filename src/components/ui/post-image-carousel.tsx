@@ -8,13 +8,15 @@ interface PostImageCarouselProps {
   alt?: string;
   className?: string;
   showCounter?: boolean;
+  onImageClick?: (imageUrl: string, index: number) => void;
 }
 
 export const PostImageCarousel: React.FC<PostImageCarouselProps> = ({
   images,
-  alt = "Post image",
+  alt = "Post media",
   className,
-  showCounter = true
+  showCounter = true,
+  onImageClick
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [api, setApi] = useState<CarouselApi>();
@@ -40,49 +42,70 @@ export const PostImageCarousel: React.FC<PostImageCarouselProps> = ({
     return null;
   }
 
-  if (images.length === 1) {
-    return (
-      <AspectRatio ratio={1} className={className}>
-        <img
-          src={images[0]}
-          alt={alt}
-          loading="lazy"
-          className="w-full h-full object-cover"
+  const isVideo = (url: string) => {
+    return url.includes('.mp4') || url.includes('.mov') || url.includes('.webm') || 
+           url.includes('video') || url.toLowerCase().match(/\.(mp4|mov|webm|avi)$/);
+  };
+
+  const renderMedia = (url: string, index: number) => {
+    if (isVideo(url)) {
+      return (
+        <video
+          key={`video-${index}`}
+          src={url}
+          controls
+          className={cn("w-full h-full object-cover", onImageClick ? "cursor-pointer" : "cursor-default")}
+          playsInline
+          preload="metadata"
+          onClick={onImageClick ? () => onImageClick(url, index) : undefined}
           onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            console.error('Failed to load image:', images[0]);
+            console.error('Failed to load video:', url);
+            const target = e.target as HTMLVideoElement;
             target.style.display = 'none';
           }}
         />
-      </AspectRatio>
+      );
+    } else {
+      return (
+        <img
+          key={`image-${index}`}
+          src={url}
+          alt={`${alt} ${index + 1}`}
+          loading="lazy"
+          className={cn("w-full h-full object-cover", onImageClick ? "cursor-pointer" : "cursor-default")}
+          onClick={onImageClick ? () => onImageClick(url, index) : undefined}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            console.error('Failed to load image:', url);
+            target.style.display = 'none';
+          }}
+        />
+      );
+    }
+  };
+
+  if (images.length === 1) {
+    return (
+      <div className={cn("w-full h-full", className)}>
+        {renderMedia(images[0], 0)}
+      </div>
     );
   }
 
   return (
     <div className={cn("relative w-full h-full", className)}>
-      <AspectRatio ratio={1} className="w-full h-full">
-        <Carousel
-          className="w-full h-full"
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          setApi={setApi}
-        >
+      <Carousel
+        className="w-full h-full"
+        opts={{
+          align: "start",
+          loop: true,
+        }}
+        setApi={setApi}
+      >
         <CarouselContent className="h-full">
           {images.map((image, index) => (
             <CarouselItem key={index} className="h-full">
-              <img
-                src={image}
-                alt={`${alt} ${index + 1}`}
-                loading="lazy"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  console.error('Failed to load image:', image);
-                  target.style.display = 'none';
-                }}
-              />
+              {renderMedia(image, index)}
             </CarouselItem>
           ))}
         </CarouselContent>
@@ -112,8 +135,7 @@ export const PostImageCarousel: React.FC<PostImageCarouselProps> = ({
             ))}
           </div>
         )}
-        </Carousel>
-      </AspectRatio>
+      </Carousel>
     </div>
   );
 };

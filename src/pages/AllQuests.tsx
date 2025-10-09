@@ -10,6 +10,7 @@ import { useAnalytics } from "@/hooks/useSimpleAnalytics";
 import { TopNavbar } from "@/components/navigation/TopNavbar";
 import { AIQuestGenerator } from "@/components/quest/AIQuestGenerator";
 import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Quest {
   id: string;
@@ -26,6 +27,7 @@ const AllQuests = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { trackPageView } = useAnalytics();
+  const { user } = useAuth();
   const [allQuests, setAllQuests] = useState<Quest[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [aiQuests, setAiQuests] = useState<Quest[]>([]);
@@ -46,12 +48,13 @@ const AllQuests = () => {
 
         if (regularError) throw regularError;
 
-        // Fetch AI-generated quests
-        const { data: aiGeneratedQuests, error: aiError } = await supabase
+        // Fetch AI-generated quests (only for current user)
+        const { data: aiGeneratedQuests, error: aiError } = user ? await supabase
           .from("ai_generated_quests")
           .select("*")
           .eq("is_active", true)
-          .order("created_at", { ascending: false });
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }) : { data: [], error: null };
 
         if (aiError) throw aiError;
 

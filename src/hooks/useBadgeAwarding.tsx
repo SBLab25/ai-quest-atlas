@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePoints } from '@/hooks/usePoints';
 import { useStreak } from '@/hooks/useStreak';
 import { useUserBadges } from '@/hooks/useUserBadges';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { addNewBadges } from '@/utils/addNewBadges';
 
 interface BadgeRequirement {
   badge_name: string;
@@ -16,6 +17,7 @@ export const useBadgeAwarding = () => {
   const { points } = usePoints();
   const { streak } = useStreak();
   const { badges, refetch: refetchBadges } = useUserBadges();
+  const hasRunRef = useRef(false);
 
   const badgeRequirements: BadgeRequirement[] = [
     {
@@ -56,6 +58,15 @@ export const useBadgeAwarding = () => {
     if (!user || !points) return;
 
     try {
+      if (hasRunRef.current) return; // prevent duplicate awards on rerenders
+      hasRunRef.current = true;
+      // Ensure badge catalog exists to prevent "Badge not found" errors
+      try {
+        await addNewBadges();
+      } catch (e) {
+        // Ignore if they already exist
+      }
+
       const currentBadgeNames = badges.map(b => b.badge.name);
       const userData = { points, streak };
 
@@ -75,16 +86,35 @@ export const useBadgeAwarding = () => {
 
   const awardBadge = async (badgeName: string) => {
     try {
-      // First get the badge ID
-      const { data: badgeData, error: badgeError } = await supabase
+      // 1) Try to find badge by exact name
+      let badgeDataRes = await supabase
         .from('Badges')
         .select('id, name')
         .eq('name', badgeName)
-        .single();
+        .limit(1);
+      let badgeData = (badgeDataRes.data && badgeDataRes.data[0]) || null;
 
-      if (badgeError || !badgeData) {
-        console.error('Badge not found:', badgeName);
-        return;
+      // 2) If not found, insert it explicitly (no upsert to avoid ON CONFLICT requirement)
+      if (!badgeData) {
+        const { data: inserted, error: insertError } = await supabase
+          .from('Badges')
+          .insert({ name: badgeName, description: '', icon_url: '🏅', quest_id: null })
+          .select('id, name')
+          .single();
+        if (insertError) {
+          console.error('Badge insert failed:', insertError);
+          return;
+        }
+        badgeData = inserted;
+      }
+
+      // Ensure a corresponding public."Users" row exists for FK satisfaction
+      try {
+        await supabase
+          .from('Users')
+          .upsert({ id: user.id, username: user.email || user.id, avatar_url: null, bio: null }, { onConflict: 'id' });
+      } catch (e) {
+        // ignore; if FK still fails we'll see the error
       }
 
       // Check if user already has this badge
@@ -93,6 +123,7 @@ export const useBadgeAwarding = () => {
         .select('id')
         .eq('user_id', user.id)
         .eq('badge_id', badgeData.id)
+        .limit(1)
         .single();
 
       if (existingBadge) return; // Already has this badge

@@ -6,7 +6,8 @@ import { useToast } from './use-toast';
 interface LocationData {
   latitude: number;
   longitude: number;
-  accuracy: number;
+  accuracy?: number;
+  address?: string;
 }
 
 export const useLocationPermission = () => {
@@ -15,6 +16,7 @@ export const useLocationPermission = () => {
   const [location, setLocation] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const requestLocationPermission = async (): Promise<boolean> => {
     if (!navigator.geolocation) {
@@ -37,10 +39,33 @@ export const useLocationPermission = () => {
         });
       });
 
+      // Get readable address using reverse geocoding
+      let address = `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+      
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&addressdetails=1`,
+          {
+            headers: {
+              'User-Agent': 'LocationPicker/1.0'
+            }
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.display_name) {
+            address = data.display_name;
+          }
+        }
+      } catch (error) {
+        console.log('Reverse geocoding not available, using coordinates');
+      }
+
       const locationData: LocationData = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy
+        accuracy: position.coords.accuracy,
+        address
       };
 
       setLocation(locationData);
@@ -91,7 +116,8 @@ export const useLocationPermission = () => {
         .update({
           latitude: locationData.latitude,
           longitude: locationData.longitude,
-          location_last_updated: new Date().toISOString()
+          location: locationData.address,
+          updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
 
@@ -123,11 +149,28 @@ export const useLocationPermission = () => {
     checkLocationPermission();
   }, []);
 
+  const setManualLocation = (locationData: LocationData) => {
+    setLocation(locationData);
+    setHasPermission(true);
+    
+    if (user) {
+      updateUserLocation(locationData);
+    }
+    
+    toast({
+      title: "Location updated",
+      description: "Your location has been saved for personalized quests"
+    });
+  };
+
   return {
     location,
     loading,
     hasPermission,
     requestLocationPermission,
-    updateUserLocation
+    updateUserLocation,
+    setManualLocation,
+    showLocationPicker,
+    setShowLocationPicker
   };
 };

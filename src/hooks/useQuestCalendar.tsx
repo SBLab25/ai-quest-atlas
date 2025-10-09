@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getISTDateString } from '@/utils/timezoneUtils';
 
 interface QuestCompletionDate {
   date: string;
@@ -31,12 +32,14 @@ export const useQuestCalendar = () => {
       if (error) throw error;
 
       if (submissions) {
-        // Group submissions by date
+        // Group submissions by date in IST
         const dateMap = new Map<string, number>();
         
         submissions.forEach(submission => {
-          const date = new Date(submission.submitted_at).toISOString().split('T')[0];
-          dateMap.set(date, (dateMap.get(date) || 0) + 1);
+          // Convert UTC submission time to IST date
+          const submissionDate = new Date(submission.submitted_at);
+          const istDateString = getISTDateString(submissionDate);
+          dateMap.set(istDateString, (dateMap.get(istDateString) || 0) + 1);
         });
 
         const completions = Array.from(dateMap.entries()).map(([date, count]) => ({
@@ -54,12 +57,12 @@ export const useQuestCalendar = () => {
   };
 
   const isQuestCompletionDate = (date: Date): boolean => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = getISTDateString(date);
     return completionDates.some(completion => completion.date === dateString);
   };
 
   const getQuestCountForDate = (date: Date): number => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = getISTDateString(date);
     const completion = completionDates.find(c => c.date === dateString);
     return completion?.count || 0;
   };

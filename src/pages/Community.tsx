@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Heart, MessageCircle, Send, Share2, Filter, Plus, Tag, Image, MapPin, Clock, User } from "lucide-react";
 import { MultiImageUpload } from "@/components/ui/multi-image-upload";
 import { PostImageCarousel } from "@/components/ui/post-image-carousel";
+import { SimpleTeamDialog } from "@/components/teams/SimpleTeamDialog";
+import CrewSidebar from "@/components/community/CrewSidebar";
 
 // Unified interface for all posts (community posts + quest submissions)
 interface UnifiedPost {
@@ -57,6 +60,7 @@ const Community = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const [posts, setPosts] = useState<UnifiedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,16 +77,14 @@ const Community = () => {
   const [tagFilter, setTagFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<"all" | "community" | "quest">("all");
   const [postTypeFilter, setPostTypeFilter] = useState<UnifiedPost["post_type"] | "all">("all");
-  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
-  const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  
 
   // SEO
   useEffect(() => {
-    document.title = "Community Chat & Achievements | Quest Community";
+    document.title = "Adventure Crew | Quest Community";
 
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
@@ -105,10 +107,14 @@ const Community = () => {
 
   useEffect(() => {
     fetchPosts();
+    const refetch = () => fetchPosts();
+    window.addEventListener('submissions-changed', refetch);
+    window.addEventListener('community-posts-changed', refetch);
+    return () => {
+      window.removeEventListener('submissions-changed', refetch);
+      window.removeEventListener('community-posts-changed', refetch);
+    };
   }, []);
-
-
-
 
   const fetchPosts = async () => {
     try {
@@ -154,7 +160,7 @@ const Community = () => {
       ];
       const uniqueUserIds = [...new Set(allUserIds)];
 
-      // Fetch user profiles
+      // Fetch user profiles from both Users and profiles tables
       const { data: usersProfiles } = await supabase
         .from("Users")
         .select("id, username, bio, avatar_url")
@@ -162,10 +168,14 @@ const Community = () => {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, username, avatar_url")
+        .select("id, username, full_name, avatar_url")
         .in("id", uniqueUserIds);
 
-      const allProfiles = [...(usersProfiles || []), ...(profiles || [])];
+      // Merge profiles, prioritizing profiles table over Users table
+      const profilesMap = new Map();
+      (usersProfiles || []).forEach(p => profilesMap.set(p.id, p));
+      (profiles || []).forEach(p => profilesMap.set(p.id, p)); // Override with profiles data if exists
+      const allProfiles = Array.from(profilesMap.values());
 
       // Process community posts
       const processedCommunityPosts = await Promise.all(
@@ -178,12 +188,6 @@ const Community = () => {
           const likes = likesRes.data || [];
           const comments = commentsRes.data || [];
           const profile = allProfiles.find((pr) => pr.id === p.user_id);
-          
-          
-          // Check for specific post debugging
-          if (p.title?.includes("Hidden Temple")) {
-            console.log("Hidden Temple post found in community_posts:", p);
-          }
           
           return {
             id: p.id,
@@ -199,9 +203,9 @@ const Community = () => {
             comments_count: comments.length,
             user_has_liked: user ? likes.some((l: any) => l.user_id === user.id) : false,
             user_profile: profile ? {
-              username: profile.username,
-              full_name: ('bio' in profile) ? (profile as any).bio : profile.username,
-              avatar_url: profile.avatar_url
+              username: profile.username || null,
+              full_name: ('full_name' in profile) ? (profile as any).full_name : (('bio' in profile) ? (profile as any).bio : null),
+              avatar_url: profile.avatar_url || null
             } : null,
           } as UnifiedPost;
         })
@@ -229,12 +233,6 @@ const Community = () => {
             // photo_url is already a full URL, but ensure it's in array format for consistency
             processedImageUrls = [s.photo_url];
           }
-          
-          // Check for specific quest submission debugging
-          if (s.description?.includes("Hidden Temple") || s.description?.includes("Kondapalli")) {
-            console.log("Hidden Temple quest submission found:", s);
-            console.log("Processed image URLs:", processedImageUrls);
-          }
 
           return {
             id: s.id,
@@ -251,9 +249,9 @@ const Community = () => {
             user_has_liked: user ? likes.some((l: any) => l.user_id === user.id) : false,
             user_has_shared: user ? shares.some((sh: any) => sh.user_id === user.id) : false,
             user_profile: profile ? {
-              username: profile.username,
-              full_name: ('bio' in profile) ? (profile as any).bio : profile.username,
-              avatar_url: profile.avatar_url
+              username: profile.username || null,
+              full_name: ('full_name' in profile) ? (profile as any).full_name : (('bio' in profile) ? (profile as any).bio : null),
+              avatar_url: profile.avatar_url || null
             } : null,
           } as UnifiedPost;
         })
@@ -272,14 +270,18 @@ const Community = () => {
     }
   };
 
+  const [globalSearch, setGlobalSearch] = useState("");
+
   const filteredPosts = useMemo(() => {
     return posts.filter((p) => {
+      const text = `${p.title || ""} ${p.content || p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+      const searchOk = globalSearch ? text.includes(globalSearch.toLowerCase()) : true;
       const tagOk = tagFilter ? (p.tags || []).some((t) => t.toLowerCase() === tagFilter.toLowerCase()) : true;
       const contentTypeOk = typeFilter === "all" ? true : p.type === typeFilter;
       const postTypeOk = postTypeFilter === "all" ? true : p.post_type === postTypeFilter;
-      return tagOk && contentTypeOk && postTypeOk;
+      return searchOk && tagOk && contentTypeOk && postTypeOk;
     });
-  }, [posts, tagFilter, typeFilter, postTypeFilter]);
+  }, [posts, globalSearch, tagFilter, typeFilter, postTypeFilter]);
 
   const handleCreatePost = async () => {
     if (!user) {
@@ -420,719 +422,377 @@ const Community = () => {
     }
   };
 
-  const loadComments = async (postId: string) => {
-    try {
-      const post = posts.find(p => p.id === postId);
-      if (!post) return;
-
-      let data, error;
-      if (post.type === 'community') {
-        const result = await (supabase as any)
-          .from("community_post_comments")
-          .select("id, user_id, post_id, content, created_at")
-          .eq("post_id", postId)
-          .order("created_at", { ascending: true });
-        data = result.data;
-        error = result.error;
-      } else {
-        const result = await supabase
-          .from("post_comments")
-          .select("id, user_id, submission_id, content, created_at")
-          .eq("submission_id", postId)
-          .order("created_at", { ascending: true });
-        data = result.data;
-        error = result.error;
-      }
-
-      if (error) throw error;
-
-      const userIds = (data || []).map((c: any) => c.user_id);
-      const [usersProfiles, profiles] = await Promise.all([
-        supabase.from("Users").select("id, username, bio, avatar_url").in("id", userIds),
-        supabase.from("profiles").select("id, username, avatar_url").in("id", userIds)
-      ]);
-
-      const allProfiles = [...(usersProfiles.data || []), ...(profiles.data || [])];
-
-      const withProfiles: Comment[] = (data || []).map((c: any) => {
-        const profile = allProfiles.find((p) => p.id === c.user_id);
-        return {
-          ...c,
-          post_id: postId,
-          user_profile: profile ? {
-            username: profile.username,
-            full_name: ('bio' in profile) ? (profile as any).bio : profile.username,
-            avatar_url: profile.avatar_url
-          } : null,
-        };
-      });
-
-      setComments((prev) => ({ ...prev, [postId]: withProfiles }));
-    } catch (err) {
-      console.error("Error loading comments", err);
+  const handleUserProfileClick = (userId: string) => {
+    if (userId && user && userId !== user.id) {
+      navigate(`/profile/${userId}`);
+    } else if (userId === user?.id) {
+      navigate('/profile');
     }
-  };
-
-  const toggleComments = async (postId: string) => {
-    const isOpen = openComments[postId];
-    setOpenComments((prev) => ({ ...prev, [postId]: !isOpen }));
-    if (!isOpen && !comments[postId]) {
-      await loadComments(postId);
-    }
-  };
-
-  const addComment = async (postId: string) => {
-    if (!user) {
-      toast({ title: "Sign in required", description: "Please sign in to comment", variant: "destructive" });
-      return;
-    }
-    const text = (newComment[postId] || "").trim();
-    if (!text) return;
-
-    try {
-      const post = posts.find(p => p.id === postId);
-      if (!post) return;
-
-      if (post.type === 'community') {
-        const { error } = await (supabase as any)
-          .from("community_post_comments")
-          .insert({ post_id: postId, user_id: user.id, content: text });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("post_comments")
-          .insert({ submission_id: postId, user_id: user.id, content: text });
-        if (error) throw error;
-      }
-
-      setNewComment((prev) => ({ ...prev, [postId]: "" }));
-      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p)));
-      await loadComments(postId);
-      
-      toast({ title: "Comment added", description: "Your comment has been posted" });
-    } catch (err) {
-      console.error("Error adding comment", err);
-      toast({ title: "Error", description: "Failed to add comment", variant: "destructive" });
-    }
-  };
-
-  const toggleDescriptionExpanded = (postId: string) => {
-    setExpandedDescriptions(prev => ({ ...prev, [postId]: !prev[postId] }));
   };
 
   const renderDescription = (post: UnifiedPost, maxLength: number = 150) => {
     const description = post.content || post.description || "";
     const isExpanded = expandedDescriptions[post.id];
     
-    if (description.length <= maxLength) {
-      return <span>{description}</span>;
+    if (description.length <= maxLength || isExpanded) {
+      return description;
     }
     
     return (
-      <span>
-        {isExpanded ? description : `${description.slice(0, maxLength)}...`}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => toggleDescriptionExpanded(post.id)}
-          className="p-0 h-auto ml-1 text-primary hover:underline"
+      <>
+        {description.slice(0, maxLength)}...
+        <button
+          className="text-muted-foreground ml-1 hover:text-foreground"
+          onClick={() => setExpandedDescriptions(prev => ({
+            ...prev,
+            [post.id]: true
+          }))}
         >
-          {isExpanded ? "show less" : "view more"}
-        </Button>
-      </span>
+          more
+        </button>
+      </>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <TopNavbar />
+      <CrewSidebar onSearchChange={(t) => setGlobalSearch(t)} />
       
-      <main className="container mx-auto px-6 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-4">
-            Adventure Community
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Connect with fellow adventurers, share your quest achievements, and discover new challenges together.
-          </p>
-        </div>
-
-        <div className="max-w-3xl mx-auto">
-          {/* Community Controls */}
-          <div className="relative mb-8">
-            <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Community Hub</h2>
-                    <p className="text-muted-foreground">Share achievements, connect with fellow adventurers</p>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowFilters(!showFilters)}
-                      className="flex items-center gap-2"
-                    >
-                      <Filter className="h-4 w-4" />
-                      Filters
-                    </Button>
-                    <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-                      <DialogTrigger asChild>
-                        <Button className="flex items-center gap-2">
-                          <Plus className="h-4 w-4" />
-                          Create Post
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-lg">
-                        <DialogHeader>
-                          <DialogTitle>Share Your Adventure</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4">
-                          <Input 
-                            placeholder="What's on your mind?" 
-                            value={title} 
-                            onChange={(e) => setTitle(e.target.value)} 
-                          />
-                          <div className="grid grid-cols-2 gap-3">
-                            <select
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                              value={postType}
-                              onChange={(e) => setPostType(e.target.value as UnifiedPost["post_type"])}
-                            >
-                              <option value="general">General</option>
-                              <option value="help">Help</option>
-                              <option value="achievement">Achievement</option>
-                              <option value="discussion">Discussion</option>
-                            </select>
-                            <Input 
-                              placeholder="Tags (comma separated)" 
-                              value={tagsInput} 
-                              onChange={(e) => setTagsInput(e.target.value)} 
-                            />
-                          </div>
-                          <Textarea 
-                            placeholder="Write your post..." 
-                            value={content} 
-                            onChange={(e) => setContent(e.target.value)} 
-                            className="min-h-[100px]" 
-                          />
-                          
-                          {/* Multi-Image Upload */}
-                          <div>
-                            <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                              <Image className="h-4 w-4" />
-                              Add Images (Optional, up to 3)
-                            </label>
-                            <MultiImageUpload
-                              onImagesUpdate={setImageUrls}
-                              existingImages={imageUrls}
-                              maxImages={3}
-                              bucket="community-images"
-                              path="community-posts"
-                            />
-                          </div>
-                          
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              onClick={() => setShowCreateDialog(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button 
-                              onClick={() => {
-                                handleCreatePost();
-                                setShowCreateDialog(false);
-                              }} 
-                              disabled={!title.trim() || !content.trim() || creating}
-                            >
-                              {creating ? "Posting..." : "Share"}
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <main className="container mx-auto max-w-2xl px-4 py-8">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-4">Adventure Crew</h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Share achievements, get help, and connect with fellow adventurers</p>
           </div>
 
-
-                {/* Filters Panel */}
-                {showFilters && (
-                  <Card className="mb-4">
-                    <CardContent className="p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <Input 
-                            placeholder="Filter by tag..." 
-                            value={tagFilter} 
-                            onChange={(e) => setTagFilter(e.target.value)} 
-                          />
+          {/* Action Bar */}
+          <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-lg">
+            <CardContent className="p-4">
+              <div className="flex gap-2">
+                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Post
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md mx-auto">
+                      <DialogHeader>
+                        <DialogTitle>Share with Community</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <Input 
+                          placeholder="Post title" 
+                          value={title} 
+                          onChange={(e) => setTitle(e.target.value)} 
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-2">
                           <select
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value as any)}
+                            value={postType}
+                            onChange={(e) => setPostType(e.target.value as any)}
                           >
-                            <option value="all">All Content</option>
-                            <option value="community">Community Posts</option>
-                            <option value="quest">Quest Discoveries</option>
-                          </select>
-                          <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={postTypeFilter}
-                            onChange={(e) => setPostTypeFilter(e.target.value as any)}
-                          >
-                            <option value="all">All Types</option>
                             <option value="general">General</option>
                             <option value="help">Help</option>
                             <option value="achievement">Achievement</option>
                             <option value="discussion">Discussion</option>
                           </select>
+                          <Input 
+                            placeholder="Tags (comma separated)" 
+                            value={tagsInput} 
+                            onChange={(e) => setTagsInput(e.target.value)} 
+                          />
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mt-2" 
-                          onClick={() => { 
-                            setTagFilter(""); 
-                            setTypeFilter("all"); 
-                            setPostTypeFilter("all"); 
-                          }}
-                        >
-                          Clear Filters
-                        </Button>
+                        <Textarea 
+                          placeholder="Write your post..." 
+                          value={content} 
+                          onChange={(e) => setContent(e.target.value)} 
+                          className="min-h-[100px]" 
+                        />
+                        
+                        {/* Multi-Image Upload */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                            <Image className="h-4 w-4" />
+                            Add Images (Optional, up to 3)
+                          </label>
+                          <MultiImageUpload
+                            onImagesUpdate={setImageUrls}
+                            existingImages={imageUrls}
+                            maxImages={3}
+                            bucket="community-images"
+                            path="community-posts"
+                          />
+                        </div>
+                        
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowCreateDialog(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={() => {
+                              handleCreatePost();
+                              setShowCreateDialog(false);
+                            }} 
+                            disabled={!title.trim() || !content.trim() || creating}
+                          >
+                            {creating ? "Posting..." : "Share"}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                </Dialog>
+                
+                <Button 
+                  variant="outline" 
+                  className="border-border/50 hover:bg-accent/20"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Filters Panel */}
+          {showFilters && (
+            <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-lg">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Input 
+                    placeholder="Filter by tag..." 
+                    value={tagFilter} 
+                    onChange={(e) => setTagFilter(e.target.value)} 
+                  />
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as any)}
+                  >
+                    <option value="all">All Content</option>
+                    <option value="community">Community Posts</option>
+                    <option value="quest">Quest Submissions</option>
+                  </select>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={postTypeFilter}
+                    onChange={(e) => setPostTypeFilter(e.target.value as any)}
+                  >
+                    <option value="all">All Types</option>
+                    <option value="general">General</option>
+                    <option value="help">Help</option>
+                    <option value="achievement">Achievement</option>
+                    <option value="discussion">Discussion</option>
+                  </select>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2" 
+                  onClick={() => { 
+                    setTagFilter(""); 
+                    setTypeFilter("all"); 
+                    setPostTypeFilter("all"); 
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Instagram-style Posts Feed */}
+          <div className="space-y-6">
+            {loading ? (
+              <div className="grid gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="animate-pulse border-0 rounded-lg shadow-lg bg-card/50">
+                    <CardContent className="p-0">
+                      <div className="h-96 bg-muted/50 rounded-lg"></div>
                     </CardContent>
                   </Card>
-                )}
+                ))}
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">No posts yet. Be the first to share!</p>
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Create First Post
+                </Button>
+              </div>
+            ) : (
+              filteredPosts.map((post) => (
+                <Card key={post.id} className="overflow-hidden rounded-lg shadow-lg bg-card/80 backdrop-blur-sm border-border/50 hover:shadow-xl transition-all duration-300">
+                  <div className="p-4 flex flex-col md:flex-row gap-4">
+                    {/* Media - Left */}
+                    {post.image_urls && post.image_urls.length > 0 && (
+                      <div className="w-full md:w-80 md:h-80 aspect-square md:aspect-auto flex-shrink-0 relative overflow-hidden rounded-lg">
+                        <PostImageCarousel 
+                          images={post.image_urls}
+                          alt={post.title || "Post image"}
+                          className="w-full h-full object-cover"
+                          showCounter={post.image_urls.length > 1}
+                          onImageClick={() => navigate(`/post/${post.id}`)}
+                        />
+                      </div>
+                    )}
 
-                {/* Unified Feed - Instagram-like for Desktop, Traditional for Mobile */}
-                <div className="space-y-6 pb-20">
-                  {loading ? (
-                    <div className="grid gap-6">
-                      {[1, 2, 3].map((i) => (
-                        <Card key={i} className="animate-pulse">
-                          <CardContent className="p-0">
-                            <div className="h-96 bg-muted rounded-md"></div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : filteredPosts.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-muted-foreground mb-4">No posts yet. Be the first to share!</p>
-                      <Button onClick={() => setShowCreateDialog(true)}>
-                        <Plus className="h-4 w-4 mr-2" /> Create First Post
-                      </Button>
-                    </div>
-                  ) : (
-                    filteredPosts.map((post) => (
-                      <Card key={post.id} className="overflow-hidden animate-fade-in hover-scale transition-shadow">
-                        <CardContent className="p-0">
-                          {isMobile ? (
-                            // Mobile Layout: Traditional Social Media Style
-                            <>
-                              {/* Post Header */}
-                              <div className="flex items-center gap-3 p-4 pb-3">
-                                <Avatar className="h-10 w-10">
-                                  <AvatarImage src={post.user_profile?.avatar_url || undefined} />
-                                  <AvatarFallback>
-                                    {post.type === 'quest' ? <User className="h-5 w-5" /> : (post.user_profile?.username?.charAt(0) || "U").toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                  <p className="font-semibold text-sm">
-                                    {post.user_profile?.username || "Anonymous"}
-                                  </p>
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <div className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {new Date(post.created_at).toLocaleDateString()}
-                                    </div>
-                                    {post.geo_location && (
-                                      <div className="flex items-center gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        {post.geo_location}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {post.type}
-                                  </Badge>
-                                  {post.post_type && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {post.post_type}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Post Title */}
-                              {post.title && (
-                                <div className="px-4 pb-2">
-                                  <h3 className="font-semibold text-base">{post.title}</h3>
-                                </div>
+                    {/* Content - Right */}
+                    <div className="flex-1 flex flex-col">
+                      {/* Profile Header */}
+                      <div className="flex items-center gap-3 pb-2">
+                        <Avatar 
+                          className="h-8 w-8 cursor-pointer" 
+                          onClick={() => handleUserProfileClick(post.user_id)}
+                        >
+                          <AvatarImage src={post.user_profile?.avatar_url || ""} />
+                          <AvatarFallback>
+                            {post.user_profile?.username?.[0]?.toUpperCase() || 
+                             post.user_profile?.full_name?.[0]?.toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p 
+                            className="text-sm font-semibold truncate cursor-pointer hover:underline" 
+                            onClick={() => handleUserProfileClick(post.user_id)}
+                          >
+                            {post.user_profile?.username || post.user_profile?.full_name || "Anonymous"}
+                          </p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-2">
+                            {new Date(post.created_at).toLocaleDateString()}
+                            <span className="inline-flex items-center gap-1">
+                              {post.geo_location && (
+                                <>
+                                  <MapPin className="h-3 w-3" /> {post.geo_location}
+                                </>
                               )}
+                            </span>
+                          </p>
+                        </div>
+                        <Badge variant={post.type === 'community' ? 'default' : 'secondary'} className="text-xs">
+                          {post.type === 'community' ? 'Community' : 'Quest'}
+                        </Badge>
+                      </div>
 
-                              {/* Post Images */}
-                              {post.image_urls && post.image_urls.length > 0 && (
-                                <PostImageCarousel 
-                                  images={post.image_urls}
-                                  alt="Community post"
-                                />
-                              )}
+                      {/* Caption */}
+                      <div className="text-sm mb-3">
+                        <span className="font-semibold mr-2">
+                          {post.user_profile?.username || post.user_profile?.full_name || "Anonymous"}
+                        </span>
+                        <span>
+                          {expandedDescriptions[post.id] || (post.content || post.description || "").length <= 150
+                            ? (post.content || post.description || "")
+                            : `${(post.content || post.description || "").slice(0, 150)}...`}
+                        </span>
+                        {(post.content || post.description || "").length > 150 && (
+                          <button
+                            className="text-muted-foreground ml-1 hover:text-foreground"
+                            onClick={() => setExpandedDescriptions(prev => ({
+                              ...prev,
+                              [post.id]: !prev[post.id]
+                            }))}
+                          >
+                            {expandedDescriptions[post.id] ? " less" : " more"}
+                          </button>
+                        )}
+                      </div>
 
-                              {/* Post Actions - Below Image */}
-                              <div className="p-4">
-                                <div className="flex items-center gap-4 mb-3">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleLike(post.id)}
-                                    className={`p-0 h-auto ${post.user_has_liked ? 'text-red-500' : 'text-muted-foreground'}`}
-                                    disabled={!user}
-                                  >
-                                    <Heart className={`h-6 w-6 ${post.user_has_liked ? 'fill-current' : ''}`} />
-                                  </Button>
-                                  
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleComments(post.id)}
-                                    className="p-0 h-auto text-muted-foreground"
-                                  >
-                                    <MessageCircle className="h-6 w-6" />
-                                  </Button>
-                                  
-                                  {post.type === 'quest' && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleShare(post.id)}
-                                      className={`p-0 h-auto ${post.user_has_shared ? 'text-blue-500' : 'text-muted-foreground'}`}
-                                      disabled={!user}
-                                    >
-                                      <Share2 className="h-6 w-6" />
-                                    </Button>
-                                  )}
-                                </div>
+                      {/* Tags */}
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {post.tags.map((tag) => (
+                            <Badge 
+                              key={tag} 
+                              variant="secondary" 
+                              className="text-xs cursor-pointer hover:bg-secondary/80" 
+                              onClick={() => setTagFilter(tag)}
+                            >
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
 
-                                {/* Stats and Description */}
-                                <div className="text-sm space-y-1">
-                                  {post.likes_count > 0 && (
-                                    <p className="font-semibold">
-                                      {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
-                                    </p>
-                                  )}
-                                  
-                                   <p>
-                                     <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
-                                     {renderDescription(post, 100)}
-                                  </p>
-
-                                  {post.comments_count > 0 && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleComments(post.id)}
-                                      className="p-0 h-auto text-muted-foreground text-sm"
-                                    >
-                                      View all {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Tags */}
-                              {post.tags && post.tags.length > 0 && (
-                                <div className="px-4 pb-3 flex flex-wrap gap-1">
-                                  {post.tags.map((tag) => (
-                                    <Badge 
-                                      key={tag} 
-                                      variant="secondary" 
-                                      className="text-xs cursor-pointer hover:bg-secondary/80" 
-                                      onClick={() => setTagFilter(tag)}
-                                    >
-                                      #{tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-
-                              {/* Comments Section */}
-                              {openComments[post.id] && (
-                                <div className="border-t p-4 space-y-3">
-                                  {comments[post.id]?.map((comment) => (
-                                    <div key={comment.id} className="flex gap-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarImage src={comment.user_profile?.avatar_url || undefined} />
-                                        <AvatarFallback>
-                                          <User className="h-3 w-3" />
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1">
-                                        <p className="text-sm">
-                                          <span className="font-semibold">
-                                            {comment.user_profile?.username || "Anonymous"}
-                                          </span>{" "}
-                                          {comment.content}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {new Date(comment.created_at).toLocaleDateString()}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ))}
-                                  
-                                  {/* Add Comment */}
-                                  {user && (
-                                    <div className="flex gap-2 pt-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarFallback>
-                                          <User className="h-3 w-3" />
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 flex gap-2">
-                                        <Input
-                                          placeholder="Add a comment..."
-                                          value={newComment[post.id] || ""}
-                                          onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                          onKeyPress={(e) => e.key === 'Enter' && addComment(post.id)}
-                                          className="text-sm"
-                                        />
-                                        <Button
-                                          size="sm"
-                                          onClick={() => addComment(post.id)}
-                                          disabled={!newComment[post.id]?.trim()}
-                                        >
-                                          <Send className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            // Desktop Layout: Instagram-like with fixed square images on left, content on right
-                            <div className="flex min-h-[350px] max-w-xl mx-auto">
-                              {/* Left Side - Images with fixed square ratio */}
-                              <div className="w-[350px] flex-shrink-0">
-                                {post.image_urls && post.image_urls.length > 0 ? (
-                                  <PostImageCarousel 
-                                    images={post.image_urls}
-                                    alt={post.title || "Community post"}
-                                    className="w-full h-[350px]"
-                                  />
-                                ) : (
-                                  <div className="w-full h-[350px] bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center border border-border rounded-lg">
-                                    <div className="text-center p-6">
-                                      <h3 className="font-semibold text-lg mb-2">{post.title}</h3>
-                                      <p className="text-muted-foreground text-sm line-clamp-4">{post.content}</p>
-                                      <div className="mt-3 text-xs text-muted-foreground">
-                                        {post.type === 'quest' ? '🗺️ Quest Discovery' : '💬 Community Post'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Right Side - Content and Interactions */}
-                              <div className="w-64 flex flex-col">
-                                {/* Post Header */}
-                                <div className="flex items-center gap-3 p-4 border-b">
-                                  <Avatar className="h-10 w-10">
-                                    <AvatarImage src={post.user_profile?.avatar_url || undefined} />
-                                    <AvatarFallback>
-                                      {post.type === 'quest' ? <User className="h-5 w-5" /> : (post.user_profile?.username?.charAt(0) || "U").toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1">
-                                    <p className="font-semibold text-sm">
-                                      {post.user_profile?.username || "Anonymous"}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <Clock className="h-3 w-3" />
-                                      {new Date(post.created_at).toLocaleDateString()}
-                                      {post.geo_location && (
-                                        <>
-                                          <MapPin className="h-3 w-3 ml-2" />
-                                          <span className="truncate max-w-20">{post.geo_location}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Post Content */}
-                                <div className="flex-1 p-4 overflow-y-auto">
-                                  <div className="space-y-3">
-                                    {/* Title and Description */}
-                                    {post.title && (
-                                      <h3 className="font-semibold text-base">{post.title}</h3>
-                                    )}
-                                    
-                                     <p className="text-sm">
-                                       <span className="font-semibold">{post.user_profile?.username || "Anonymous"}</span>{" "}
-                                       {renderDescription(post, 120)}
-                                    </p>
-
-                                    {/* Badges */}
-                                    <div className="flex flex-wrap gap-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {post.type}
-                                      </Badge>
-                                      {post.post_type && (
-                                        <Badge variant="secondary" className="text-xs">
-                                          {post.post_type}
-                                        </Badge>
-                                      )}
-                                    </div>
-
-                                    {/* Tags */}
-                                    {post.tags && post.tags.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {post.tags.map((tag) => (
-                                          <Badge 
-                                            key={tag} 
-                                            variant="secondary" 
-                                            className="text-xs cursor-pointer hover:bg-secondary/80" 
-                                            onClick={() => setTagFilter(tag)}
-                                          >
-                                            #{tag}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    {/* Comments */}
-                                    {openComments[post.id] && (
-                                      <div className="space-y-3 max-h-60 overflow-y-auto">
-                                        {comments[post.id]?.map((comment) => (
-                                          <div key={comment.id} className="flex gap-2">
-                                            <Avatar className="h-6 w-6">
-                                              <AvatarImage src={comment.user_profile?.avatar_url || undefined} />
-                                              <AvatarFallback>
-                                                <User className="h-3 w-3" />
-                                              </AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                              <p className="text-sm">
-                                                <span className="font-semibold">
-                                                  {comment.user_profile?.username || "Anonymous"}
-                                                </span>{" "}
-                                                {comment.content}
-                                              </p>
-                                              <p className="text-xs text-muted-foreground">
-                                                {new Date(comment.created_at).toLocaleDateString()}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Actions and Comment Input */}
-                                <div className="border-t">
-                                  {/* Action Buttons */}
-                                  <div className="flex items-center gap-4 p-4">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleLike(post.id)}
-                                      className={`p-0 h-auto ${post.user_has_liked ? 'text-red-500' : 'text-muted-foreground'}`}
-                                      disabled={!user}
-                                    >
-                                      <Heart className={`h-6 w-6 ${post.user_has_liked ? 'fill-current' : ''}`} />
-                                    </Button>
-                                    
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleComments(post.id)}
-                                      className="p-0 h-auto text-muted-foreground"
-                                    >
-                                      <MessageCircle className="h-6 w-6" />
-                                    </Button>
-                                    
-                                    {post.type === 'quest' && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => toggleShare(post.id)}
-                                        className={`p-0 h-auto ${post.user_has_shared ? 'text-blue-500' : 'text-muted-foreground'}`}
-                                        disabled={!user}
-                                      >
-                                        <Share2 className="h-6 w-6" />
-                                      </Button>
-                                    )}
-                                  </div>
-
-                                  {/* Stats */}
-                                  <div className="px-4 pb-2">
-                                    <div className="text-sm space-y-1">
-                                      {post.likes_count > 0 && (
-                                        <p className="font-semibold">
-                                          {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
-                                        </p>
-                                      )}
-
-                                      {post.comments_count > 0 && !openComments[post.id] && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => toggleComments(post.id)}
-                                          className="p-0 h-auto text-muted-foreground text-sm"
-                                        >
-                                          View all {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Add Comment */}
-                                  {user && (
-                                    <div className="flex gap-2 p-4 pt-0">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarFallback>
-                                          <User className="h-3 w-3" />
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 flex gap-2">
-                                        <Input
-                                          placeholder="Add a comment..."
-                                          value={newComment[post.id] || ""}
-                                          onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                          onKeyPress={(e) => e.key === 'Enter' && addComment(post.id)}
-                                          className="text-sm"
-                                        />
-                                        <Button
-                                          size="sm"
-                                          onClick={() => addComment(post.id)}
-                                          disabled={!newComment[post.id]?.trim()}
-                                        >
-                                          <Send className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                      {/* Actions and Stats */}
+                      <div className="mt-auto">
+                        <div className="flex items-center gap-4 mb-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-auto hover:bg-transparent"
+                            onClick={() => toggleLike(post.id)}
+                          >
+                            <Heart 
+                              className={`h-6 w-6 ${post.user_has_liked ? 'fill-red-500 text-red-500' : 'text-foreground'}`} 
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-auto hover:bg-transparent"
+                            onClick={() => navigate(`/post/${post.id}`)}
+                          >
+                            <MessageCircle className="h-6 w-6" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-auto hover:bg-transparent"
+                            onClick={() => navigator.share ? navigator.share({ 
+                              title: post.title || 'Check out this post',
+                              text: post.content || post.description,
+                              url: window.location.href 
+                            }) : null}
+                          >
+                            <Send className="h-6 w-6" />
+                          </Button>
+                          {post.type === 'quest' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="p-0 h-auto hover:bg-transparent ml-auto"
+                              onClick={() => toggleShare(post.id)}
+                            >
+                              <Share2 className={`${post.user_has_shared ? 'fill-current' : ''} h-6 w-6`} />
+                            </Button>
                           )}
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                        </div>
+
+                        {post.likes_count > 0 && (
+                          <p className="text-sm font-semibold mb-1">
+                            {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
+                          </p>
+                        )}
+
+                        {post.comments_count > 0 && (
+                          <button
+                            className="text-sm text-muted-foreground mt-1 hover:text-foreground"
+                            onClick={() => navigate(`/post/${post.id}`)}
+                          >
+                            View all {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+        
+        {/* Team-Up Button - Fixed position bottom right */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <SimpleTeamDialog />
         </div>
       </main>
+
     </div>
   );
 };

@@ -46,20 +46,73 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Ocean Theme */
+  .theme-ocean {
+    --primary: 210 100% 50%;
+    --quest-primary: 210 100% 50%;
+    --quest-secondary: 190 100% 40%;
+    --quest-accent: 170 100% 30%;
+    --secondary: 210 100% 85%;
+    --accent: 180 60% 60%;
+  }
+
+  /* Forest Theme */
+  .theme-forest {
+    --primary: 120 60% 40%;
+    --quest-primary: 120 60% 40%;
+    --quest-secondary: 100 60% 45%;
+    --quest-accent: 80 70% 50%;
+    --secondary: 120 50% 80%;
+    --accent: 110 50% 60%;
+  }
+
+  /* Sunset Theme */
+  .theme-sunset {
+    --primary: 15 100% 60%;
+    --quest-primary: 15 100% 60%;
+    --quest-secondary: 30 100% 55%;
+    --quest-accent: 45 100% 50%;
+    --secondary: 15 100% 85%;
+    --accent: 25 80% 70%;
+  }
+
+  /* Purple Theme */
+  .theme-purple {
+    --primary: 280 100% 60%;
+    --quest-primary: 280 100% 60%;
+    --quest-secondary: 260 100% 65%;
+    --quest-accent: 300 100% 70%;
+    --secondary: 280 80% 85%;
+    --accent: 270 70% 75%;
+  }
+
+  /* Rose Theme */
+  .theme-rose {
+    --primary: 330 80% 60%;
+    --quest-primary: 330 80% 60%;
+    --quest-secondary: 350 80% 65%;
+    --quest-accent: 10 80% 70%;
+    --secondary: 330 70% 85%;
+    --accent: 340 60% 75%;
+  }
+
+  /* Cosmic Theme */
+  .theme-cosmic {
+    --primary: 250 100% 70%;
+    --quest-primary: 250 100% 70%;
+    --quest-secondary: 280 100% 75%;
+    --quest-accent: 220 100% 80%;
+    --secondary: 250 80% 85%;
+    --accent: 270 70% 80%;
   }
 
   .dark {

@@ -49,7 +49,15 @@ export const useUserBadges = () => {
       if (error) throw error;
 
       // Transform the data to match our interface
-      const transformedBadges: UserBadge[] = (data || []).map(item => ({
+      const seen = new Set<string>();
+      const transformedBadges: UserBadge[] = (data || [])
+        .filter((item) => {
+          const key = `${item.badge_id}-${item.earned_at?.slice(0,10)}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map(item => ({
         id: item.id,
         badge_id: item.badge_id,
         earned_at: item.earned_at,

@@ -107,9 +107,10 @@ export const addNewBadges = async () => {
       return existingBadges;
     }
 
+    // Use upsert to avoid duplicates if concurrent calls happen or duplicates exist
     const { data, error } = await supabase
       .from('Badges')
-      .insert(badgesToAdd)
+      .upsert(badgesToAdd, { onConflict: 'name', ignoreDuplicates: true })
       .select();
 
     if (error) {

@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useLocationPermission } from '@/hooks/useLocationPermission';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin, Clock, Star, Sparkles, RefreshCw, Calendar } from 'lucide-react';
@@ -22,19 +21,37 @@ interface AIGeneratedQuest {
 
 export const AIQuestGenerator = () => {
   const { user } = useAuth();
-  const { location, hasPermission, requestLocationPermission } = useLocationPermission();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [aiQuests, setAiQuests] = useState<AIGeneratedQuest[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
       fetchAIQuests();
+      fetchUserProfile();
     }
   }, [user]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const fetchAIQuests = async () => {
     if (!user) return;
@@ -73,18 +90,32 @@ export const AIQuestGenerator = () => {
       return;
     }
 
-    if (!hasPermission) {
-      const granted = await requestLocationPermission();
-      if (!granted) return;
-    }
-
     try {
       setGenerating(true);
+      
+      // Use precise profile location with coordinates for better quest generation
+      let locationData = null;
+      if (userProfile?.latitude && userProfile?.longitude) {
+        locationData = {
+          latitude: userProfile.latitude,
+          longitude: userProfile.longitude,
+          address: userProfile.location || `${userProfile.latitude.toFixed(4)}, ${userProfile.longitude.toFixed(4)}`,
+          accuracy: 'profile', // Indicates this is from user's saved profile location
+          coordinates: `${userProfile.latitude.toFixed(6)}, ${userProfile.longitude.toFixed(6)}`
+        };
+      } else if (userProfile?.location) {
+        // Fallback to text-based location if no coordinates
+        locationData = {
+          address: userProfile.location,
+          accuracy: 'text-only'
+        };
+      }
       
       const { data, error } = await supabase.functions.invoke('generate-daily-ai-quests', {
         body: { 
           manual: true,
-          userId: user.id 
+          userId: user.id,
+          location: locationData
         }
       });
 
@@ -130,6 +161,11 @@ export const AIQuestGenerator = () => {
       community: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
       adventure: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
       culture: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+      social: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
+      truth: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+      dare: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      knowledge: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+      creative: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
     };
     return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
   };
@@ -181,10 +217,26 @@ export const AIQuestGenerator = () => {
             </Button>
           </div>
           <CardDescription>
-            Personalized quests generated daily based on your location and interests.
-            {!hasPermission && (
+            Personalized and innovative quests including social challenges, creative tasks, truth or dare games, and location-based adventures.
+            {userProfile?.latitude && userProfile?.longitude ? (
+              <span className="block mt-1 text-green-600 dark:text-green-400">
+                📍 Using precise location: {userProfile.location} 
+                <span className="text-xs opacity-75"> ({userProfile.latitude.toFixed(4)}, {userProfile.longitude.toFixed(4)})</span>
+              </span>
+            ) : userProfile?.location ? (
               <span className="block mt-1 text-amber-600 dark:text-amber-400">
-                Enable location access to get location-based quests.
+                📍 Using general location: {userProfile.location} 
+                <span className="text-xs opacity-75">(Set precise coordinates in profile for better quests)</span>
+              </span>
+            ) : (
+              <span className="block mt-1 text-red-600 dark:text-red-400">
+                📍 No location set - quests will be generic. 
+                <button 
+                  onClick={() => navigate('/profile')} 
+                  className="underline hover:no-underline"
+                >
+                  Set location in profile
+                </button>
               </span>
             )}
           </CardDescription>
@@ -201,12 +253,12 @@ export const AIQuestGenerator = () => {
               <p className="text-muted-foreground mb-4">
                 Generate your first personalized quest or wait for the daily automatic generation at midnight UTC.
               </p>
-              {!hasPermission && (
-                <Button onClick={requestLocationPermission} variant="outline" className="mb-4">
+              <div className="flex justify-center">
+                <Button onClick={() => navigate('/profile')} variant="outline">
                   <MapPin className="h-4 w-4 mr-2" />
-                  Enable Location Access
+                  Set Location in Profile
                 </Button>
-              )}
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

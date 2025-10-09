@@ -12,10 +12,12 @@ import QuestDetail from "./pages/QuestDetail";
 import SubmitQuest from "./pages/SubmitQuest";
 import BadgeGallery from "./pages/BadgeGallery";
 import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
 import Leaderboard from "./pages/Leaderboard";
 import QuestMapPage from "./pages/QuestMap";
 import NotFound from "./pages/NotFound";
 import Community from "./pages/Community";
+import PostDetail from "./pages/PostDetail";
 import MobileTest from "./pages/MobileTest";
 import Admin from "./pages/Admin";
 
@@ -65,8 +67,10 @@ const App = () => (
           <Route path="/submit/:id" element={<ProtectedRoute><SubmitQuest /></ProtectedRoute>} />
           <Route path="/badges" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/profile/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+          <Route path="/post/:postId" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
           <Route path="/quest-map" element={<ProtectedRoute><QuestMapPage /></ProtectedRoute>} />
           <Route path="/mobile-test" element={<MobileTest />} />
           {/* Redirect old dashboard route to home */}
