@@ -2,3 +2,6 @@ project_id = "afglpoufxxgdxylvgeex"
 
 [functions.generate-daily-ai-quests]
 verify_jwt = false
+
+[functions.generate-quest-suggestions]
+verify_jwt = true

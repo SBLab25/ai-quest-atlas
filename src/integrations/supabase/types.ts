@@ -184,6 +184,65 @@ export type Database = {
         }
         Relationships: []
       }
+      crew_members: {
+        Row: {
+          crew_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          crew_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          crew_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_members_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crews: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          leader_id: string | null
+          max_members: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          leader_id?: string | null
+          max_members?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          leader_id?: string | null
+          max_members?: number
+          name?: string
+        }
+        Relationships: []
+      }
       post_comments: {
         Row: {
           content: string
@@ -383,6 +442,164 @@ export type Database = {
           },
         ]
       }
+      suggested_quests: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          difficulty: number
+          estimated_duration: number
+          expires_at: string
+          generated_at: string
+          generation_context: Json | null
+          id: string
+          is_accepted: boolean
+          is_active: boolean
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          quest_type: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          difficulty: number
+          estimated_duration: number
+          expires_at?: string
+          generated_at?: string
+          generation_context?: Json | null
+          id?: string
+          is_accepted?: boolean
+          is_active?: boolean
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          quest_type?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          difficulty?: number
+          estimated_duration?: number
+          expires_at?: string
+          generated_at?: string
+          generation_context?: Json | null
+          id?: string
+          is_accepted?: boolean
+          is_active?: boolean
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          quest_type?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string | null
+          team_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_quest_completions: {
+        Row: {
+          completed_at: string
+          completed_by: string | null
+          id: string
+          quest_id: string | null
+          team_id: string | null
+        }
+        Insert: {
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          quest_id?: string | null
+          team_id?: string | null
+        }
+        Update: {
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          quest_id?: string | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_quest_completions_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "Quests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_quest_completions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          leader_id: string | null
+          max_members: number | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          leader_id?: string | null
+          max_members?: number | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          leader_id?: string | null
+          max_members?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
       "User Badges": {
         Row: {
           badge_id: string | null
@@ -466,12 +683,44 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
       }
     }
     Enums: {

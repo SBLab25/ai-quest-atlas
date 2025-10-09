@@ -12,6 +12,7 @@ import { SearchAndFilter } from "@/components/search/SearchAndFilter";
 import { useAnalytics } from "@/hooks/useSimpleAnalytics";
 import { LiveActivityFeed } from "@/components/realtime/LiveActivityFeed";
 import { QuestRecommendations } from "@/components/performance/QuestRecommendations";
+import { QuestSuggestionsCarousel } from "@/components/quest/QuestSuggestionsCarousel";
 import { TopNavbar } from "@/components/navigation/TopNavbar";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { AIQuestGenerator } from "@/components/quest/AIQuestGenerator";
@@ -257,6 +258,9 @@ const Home = () => {
 
             {/* Main Content Sections */}
             <div className="space-y-8">
+              {/* AI-Powered Quest Suggestions */}
+              <QuestSuggestionsCarousel />
+
               {/* AI Quest Generator */}
               <AIQuestGenerator />
 

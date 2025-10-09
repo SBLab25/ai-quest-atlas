@@ -170,7 +170,10 @@
 - [ ] GPS tracking improvements
 
 ### 🤖 AI Enhancements
-- [ ] AI-powered quest suggestions based on interests
+- [x] AI-powered quest suggestions based on interests (personalized recommendations)
+- [x] AI quest generation using Gemini API
+- [x] Daily quest suggestions with carousel display
+- [x] Context-aware suggestions (location, interests, past quests)
 - [ ] AI content moderation
 - [ ] AI photo verification
 - [ ] Natural language quest search
@@ -225,6 +228,7 @@
 - ✅ profiles
 - ✅ Quests
 - ✅ ai_generated_quests
+- ✅ suggested_quests (AI-powered personalized suggestions)
 - ✅ Submissions
 - ✅ Badges
 - ✅ User Badges
@@ -307,7 +311,8 @@
 ## 📈 Current Metrics
 
 ### Feature Completion
-- **Core Features**: ~85% complete
+- **Core Features**: ~90% complete
+- **AI Features**: ~65% complete (suggestions system added)
 - **Social Features**: ~70% complete
 - **Gamification**: ~75% complete
 - **Admin Features**: ~80% complete
