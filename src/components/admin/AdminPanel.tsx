@@ -15,6 +15,7 @@ import { Settings, Plus, Edit, Trash2, Users, BarChart, Flag, Crown, Shield, Use
 import { fixHiddenTemplePost } from '@/utils/fixCommunityImages';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RecalculateAllPoints } from '@/components/admin/RecalculateAllPoints';
+import { AIVerificationLogs } from '@/components/admin/AIVerificationLogs';
 
 interface Quest {
   id: string;
@@ -339,16 +340,26 @@ export const AdminPanel = () => {
 
   const deleteQuest = async (questId: string) => {
     try {
-      const { error } = await supabase.from('Quests').delete().eq('id', questId);
-      if (error) throw error;
+      console.log('Attempting to delete quest:', questId);
+      
+      // Use service role for admin operations
+      const { error } = await supabase
+        .from('Quests')
+        .delete()
+        .eq('id', questId);
+        
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
 
       toast({ title: 'Success', description: 'Quest deleted successfully' });
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting quest:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete quest',
+        description: error?.message || 'Failed to delete quest. Check RLS policies.',
         variant: 'destructive'
       });
     }
@@ -559,11 +570,12 @@ export const AdminPanel = () => {
         </div>
 
         <Tabs defaultValue="quests" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="quests">Quests</TabsTrigger>
             <TabsTrigger value="submissions">Submissions</TabsTrigger>
             <TabsTrigger value="posts">Community Posts</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="verifications">AI Verifications</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="points">Points</TabsTrigger>
           </TabsList>
@@ -1094,6 +1106,10 @@ export const AdminPanel = () => {
 
           <TabsContent value="points" className="space-y-6">
             <RecalculateAllPoints />
+          </TabsContent>
+
+          <TabsContent value="verifications" className="space-y-6">
+            <AIVerificationLogs />
           </TabsContent>
         </Tabs>
 

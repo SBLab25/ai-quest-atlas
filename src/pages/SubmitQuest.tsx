@@ -10,11 +10,13 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Upload, Camera, MapPin, X, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { verifyPhotoProof } from "@/services/aiEnhancements";
 
 interface Quest {
   id: string;
   title: string;
   description: string;
+  location?: string;
 }
 
 const SubmitQuest = () => {
@@ -57,9 +59,9 @@ const SubmitQuest = () => {
         if (regularQuestData) {
           questData = regularQuestData;
         } else {
-          // If not found in regular quests, try AI-generated quests
+          // If not found in regular quests, try suggested_quests (AI-generated)
           const { data: aiQuestData, error: aiQuestError } = await supabase
-            .from("ai_generated_quests")
+            .from("suggested_quests")
             .select("id, title, description")
             .eq("id", id)
             .maybeSingle();
@@ -240,6 +242,60 @@ const SubmitQuest = () => {
         .single();
 
       if (submitError) throw submitError;
+
+      // Trigger AI photo verification if photo was uploaded
+      if (photoUrl && submission) {
+        console.log('🤖 Triggering AI photo verification...', {
+          submissionId: submission.id,
+          questTitle: quest.title,
+        });
+        
+        // Fire verification and show progress
+        const verifyPhoto = async () => {
+          try {
+            const result = await verifyPhotoProof({
+              submissionId: submission.id,
+              photoUrl: photoUrl,
+              questTitle: quest.title,
+              questDescription: quest.description,
+              questLocation: quest.location || '',
+              ...(geoLocation && {
+                userLatitude: parseFloat(geoLocation.split(',')[0]),
+                userLongitude: parseFloat(geoLocation.split(',')[1]),
+              }),
+            }, (message, progress) => {
+              console.log(`🔄 ${message} (${progress}%)`);
+            });
+            
+            console.log('✅ Verification completed:', result);
+            
+            if (result.verdict === 'verified') {
+              toast({
+                title: "✅ AI Verified!",
+                description: `Your submission passed AI verification with ${(result.final_confidence * 100).toFixed(0)}% confidence.`,
+              });
+            } else if (result.verdict === 'uncertain') {
+              toast({
+                title: "⚠️ Pending Review",
+                description: "Your submission needs manual review by admins.",
+              });
+            } else if (result.verdict === 'rejected') {
+              toast({
+                title: "❌ Verification Failed",
+                description: result.reason || "Your submission did not pass AI verification.",
+                variant: "destructive",
+              });
+            }
+          } catch (verifyError: any) {
+            console.error('❌ Photo verification failed:', verifyError);
+            toast({
+              title: "Verification Notice",
+              description: "Photo verification is being processed in the background.",
+            });
+          }
+        };
+        verifyPhoto();
+      }
 
       // Auto-complete for all user's teams if this is a regular quest (not AI)
       if (!isAIQuest && quest.id) {

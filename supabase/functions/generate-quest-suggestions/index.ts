@@ -58,7 +58,7 @@ serve(async (req) => {
       .gte('expires_at', new Date().toISOString());
 
     const existingTitles = existingSuggestions?.map(q => q.title) || [];
-    const completedQuestTypes = recentSubmissions?.map(s => s.Quests?.quest_type).filter(Boolean) || [];
+    const completedQuestTypes = recentSubmissions?.map(s => (s.Quests as any)?.quest_type).filter(Boolean) || [];
     
     // Generate personalized suggestions using Gemini
     const suggestions = await generateSuggestionsWithGemini({

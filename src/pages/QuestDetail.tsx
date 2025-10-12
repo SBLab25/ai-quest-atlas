@@ -44,13 +44,37 @@ const QuestDetail = () => {
       if (!id || !user) return;
 
       try {
-        const { data: questData, error: questError } = await supabase
+        // First try to fetch from regular Quests table
+        let questData = null;
+        let error = null;
+        
+        const { data: regularQuestData, error: regularQuestError } = await supabase
           .from("Quests")
           .select("*")
           .eq("id", id)
-          .single();
+          .maybeSingle();
 
-        if (questError) throw questError;
+        if (regularQuestData) {
+          questData = regularQuestData;
+        } else {
+          // If not found in regular quests, try suggested_quests (AI-generated)
+          const { data: suggestedQuestData, error: suggestedQuestError } = await supabase
+            .from("suggested_quests")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+
+          if (suggestedQuestData) {
+            questData = suggestedQuestData;
+          } else {
+            error = suggestedQuestError || regularQuestError;
+          }
+        }
+
+        if (!questData) {
+          throw error || new Error("Quest not found");
+        }
+        
         setQuest(questData);
 
         // Check if user has already submitted for this quest

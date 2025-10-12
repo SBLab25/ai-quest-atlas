@@ -190,7 +190,7 @@ export const QuestSuggestionsCarousel = () => {
 
                     <Button 
                       className="w-full mt-4"
-                      onClick={() => navigate('/submit-quest')}
+                      onClick={() => navigate(`/submit/${quest.id}`)}
                     >
                       Start Quest
                     </Button>

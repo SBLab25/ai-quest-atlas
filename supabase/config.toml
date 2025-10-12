@@ -1,7 +1,28 @@
 project_id = "afglpoufxxgdxylvgeex"
 
+[functions.ai-photo-verification]
+verify_jwt = true
+
+[functions.ai-content-moderation]
+verify_jwt = true
+
+[functions.ai-quest-search]
+verify_jwt = true
+
+[functions.ai-generate-quest-image]
+verify_jwt = true
+
 [functions.generate-daily-ai-quests]
 verify_jwt = false
 
 [functions.generate-quest-suggestions]
 verify_jwt = true
+
+[functions.check-achievements]
+verify_jwt = true
+
+[functions.reset-daily-challenges]
+verify_jwt = false
+
+[functions.expire-powerups]
+verify_jwt = false

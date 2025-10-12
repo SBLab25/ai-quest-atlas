@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Star, Shuffle, Trophy, Users, TrendingUp, Activity } from "lucide-react";
+import { MapPin, Clock, Star, Shuffle, Trophy, Users, TrendingUp, Activity, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import DiscoveryAtlasIcon from '@/components/ui/discovery-atlas-icon';
 import { SearchAndFilter } from "@/components/search/SearchAndFilter";
@@ -18,6 +18,8 @@ import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { AIQuestGenerator } from "@/components/quest/AIQuestGenerator";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { useUserBadges } from "@/hooks/useUserBadges";
+import { GamificationDashboard } from "@/components/gamification/GamificationDashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Quest {
   id: string;
@@ -46,7 +48,9 @@ const Home = () => {
 
   useEffect(() => {
     trackPageView('/home');
-    
+  }, []); // Remove trackPageView from dependencies to prevent infinite loop
+
+  useEffect(() => {
     const fetchQuests = async () => {
       try {
         // Fetch regular quests
@@ -116,7 +120,7 @@ const Home = () => {
     };
 
     fetchQuests();
-  }, [toast, trackPageView, user]);
+  }, [toast, user]); // Removed trackPageView from dependencies
 
   // Rotate featured quest every 30 seconds
   useEffect(() => {
@@ -251,13 +255,27 @@ const Home = () => {
               </Card>
             </div>
 
-            {/* Search and Filter */}
-            <div className="mb-8">
-              <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
-            </div>
+            {/* Gamification & Quests Tabs */}
+            <Tabs defaultValue="quests" className="mb-8">
+              <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsTrigger value="quests" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Quest Feed
+                </TabsTrigger>
+                <TabsTrigger value="gamification" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Achievements & XP
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Main Content Sections */}
-            <div className="space-y-8">
+              <TabsContent value="gamification" className="mt-6">
+                <GamificationDashboard />
+              </TabsContent>
+
+              <TabsContent value="quests" className="mt-6 space-y-8">
+
+                {/* Search and Filter */}
+                <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
               {/* AI-Powered Quest Suggestions */}
               <QuestSuggestionsCarousel />
 
@@ -332,12 +350,13 @@ const Home = () => {
                 )}
               </div>
 
-              {/* Live Activity and Recommendations */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <LiveActivityFeed />
-                <QuestRecommendations />
-              </div>
-            </div>
+                {/* Live Activity and Recommendations */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <LiveActivityFeed />
+                  <QuestRecommendations />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Right Side - Calendar */}
