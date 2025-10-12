@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as ExifReader from "https://esm.sh/exifreader@4.21.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -211,30 +212,199 @@ serve(async (req) => {
   }
 });
 
+// Haversine distance calculation (in meters)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+// Extract EXIF data from image
+async function extractExifData(imageUrl: string): Promise<{
+  latitude?: number;
+  longitude?: number;
+  timestamp?: string;
+  camera?: string;
+  hasExif: boolean;
+}> {
+  try {
+    console.log('📸 Extracting EXIF data...');
+    const response = await fetch(imageUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const tags = ExifReader.load(arrayBuffer);
+
+    const latitude = tags.GPSLatitude?.description ? parseFloat(tags.GPSLatitude.description) : undefined;
+    const longitude = tags.GPSLongitude?.description ? parseFloat(tags.GPSLongitude.description) : undefined;
+    const timestamp = tags.DateTime?.description || tags.DateTimeOriginal?.description;
+    const camera = tags.Model?.description;
+
+    console.log('EXIF extracted:', { latitude, longitude, timestamp, camera });
+
+    return {
+      latitude,
+      longitude,
+      timestamp,
+      camera,
+      hasExif: !!(latitude || longitude || timestamp)
+    };
+  } catch (error) {
+    console.error('EXIF extraction error:', error);
+    return { hasExif: false };
+  }
+}
+
+// Geofence validation
+function validateGeofence(
+  questLat?: number,
+  questLon?: number,
+  exifLat?: number,
+  exifLon?: number,
+  userLat?: number,
+  userLon?: number,
+  maxDistanceMeters: number = 500
+): {
+  score: number;
+  distance: number | null;
+  withinFence: boolean;
+  reason: string;
+} {
+  // Try EXIF coordinates first, fallback to user-reported
+  const photoLat = exifLat || userLat;
+  const photoLon = exifLon || userLon;
+
+  if (!questLat || !questLon || !photoLat || !photoLon) {
+    return {
+      score: 0.5,
+      distance: null,
+      withinFence: false,
+      reason: 'Missing GPS coordinates'
+    };
+  }
+
+  const distance = calculateDistance(questLat, questLon, photoLat, photoLon);
+  const withinFence = distance <= maxDistanceMeters;
+
+  // Score based on distance (1.0 at 0m, 0.0 at maxDistance+)
+  const score = withinFence ? 
+    Math.max(0, 1 - (distance / maxDistanceMeters)) : 
+    Math.max(0, 0.3 - (distance / (maxDistanceMeters * 10))); // Gentle falloff beyond fence
+
+  return {
+    score,
+    distance: Math.round(distance),
+    withinFence,
+    reason: withinFence ? 
+      `Within ${Math.round(distance)}m of quest location` :
+      `${Math.round(distance)}m away (threshold: ${maxDistanceMeters}m)`
+  };
+}
+
+// Anti-spoofing checks
+function performAntiSpoofingChecks(
+  exifData: { hasExif: boolean; timestamp?: string; camera?: string },
+  timestamp: Date
+): {
+  score: number;
+  flags: string[];
+} {
+  const flags: string[] = [];
+  let score = 1.0;
+
+  // Check 1: EXIF presence (AI images often lack EXIF)
+  if (!exifData.hasExif) {
+    flags.push('No EXIF data');
+    score -= 0.3;
+  }
+
+  // Check 2: Timestamp reasonableness (within 7 days)
+  if (exifData.timestamp) {
+    try {
+      const exifTime = new Date(exifData.timestamp);
+      const daysDiff = Math.abs(timestamp.getTime() - exifTime.getTime()) / (1000 * 60 * 60 * 24);
+      
+      if (daysDiff > 7) {
+        flags.push('Old photo (>7 days)');
+        score -= 0.2;
+      } else if (daysDiff > 1) {
+        flags.push('Photo not recent (>1 day)');
+        score -= 0.1;
+      }
+    } catch (e) {
+      flags.push('Invalid timestamp');
+      score -= 0.1;
+    }
+  }
+
+  // Check 3: Camera info (stock photos often have generic camera data)
+  if (!exifData.camera) {
+    flags.push('No camera info');
+    score -= 0.1;
+  }
+
+  return {
+    score: Math.max(0, Math.min(1, score)),
+    flags
+  };
+}
+
 async function performAIVerification(
   request: VerificationRequest,
   lovableApiKey: string
 ): Promise<AIVerificationResult> {
   const startTime = Date.now();
 
-  // Build AI prompt for Gemini 2.5 Pro Vision
+  // Step 1: Extract EXIF data
+  const exifData = await extractExifData(request.photoUrl);
+
+  // Step 2: Geofence validation
+  const geofenceResult = validateGeofence(
+    request.questLatitude,
+    request.questLongitude,
+    exifData.latitude,
+    exifData.longitude,
+    request.userLatitude,
+    request.userLongitude
+  );
+
+  // Step 3: Anti-spoofing checks
+  const antispoofResult = performAntiSpoofingChecks(exifData, new Date());
+
+  console.log('🔒 Security checks:', {
+    geofence: geofenceResult,
+    antispoof: antispoofResult,
+    exif: exifData
+  });
+
+  // Step 4: Build AI prompt with security context
   const systemPrompt = `You are an AI photo verification system for a real-world discovery game.
 Your task is to analyze photos submitted by users as proof of completing quests.
 
+SECURITY CONTEXT:
+- EXIF GPS: ${exifData.latitude && exifData.longitude ? `${exifData.latitude}, ${exifData.longitude}` : 'Not available'}
+- Geofence Check: ${geofenceResult.reason}
+- Anti-spoofing Flags: ${antispoofResult.flags.join(', ') || 'None'}
+
 Analyze the image based on these criteria:
 1. **Context Match**: Does the photo content match the quest theme and description?
-2. **Geolocation**: Does the visual scene match the claimed location?
-3. **Authenticity**: Is this a real photo or AI-generated/stock image?
+2. **Visual Scene Match**: Does the visual scene align with the claimed location?
+3. **Authenticity**: Is this a real photo? Look for AI generation artifacts, stock photo characteristics.
 4. **Scene Relevance**: How relevant is the photo to the quest objectives?
 
 Respond ONLY with valid JSON in this exact format:
 {
   "quest_match": 0.0-1.0,
-  "geolocation_match": 0.0-1.0,
-  "authenticity_score": 0.0-1.0,
+  "visual_scene_match": 0.0-1.0,
+  "ai_authenticity": 0.0-1.0,
   "scene_relevance": 0.0-1.0,
-  "final_confidence": 0.0-1.0,
-  "verdict": "verified|uncertain|rejected",
   "reason": "brief explanation"
 }`;
 
@@ -294,15 +464,54 @@ Analyze this photo and determine if it's valid proof of quest completion.`;
 
     const result = JSON.parse(jsonMatch[0]);
 
-    // Validate and normalize scores
+    // Step 5: Aggregate scores with weighted combination
+    const questMatch = Math.max(0, Math.min(1, result.quest_match || 0));
+    const visualSceneMatch = Math.max(0, Math.min(1, result.visual_scene_match || 0));
+    const aiAuthenticity = Math.max(0, Math.min(1, result.ai_authenticity || 0));
+    const sceneRelevance = Math.max(0, Math.min(1, result.scene_relevance || 0));
+
+    // Weighted final confidence
+    // 30% geofence, 25% anti-spoof, 20% AI scene match, 15% quest match, 10% relevance
+    const finalConfidence = (
+      geofenceResult.score * 0.30 +
+      antispoofResult.score * 0.25 +
+      visualSceneMatch * 0.20 +
+      questMatch * 0.15 +
+      sceneRelevance * 0.10
+    );
+
+    // Determine verdict with thresholds
+    let verdict: 'verified' | 'uncertain' | 'rejected';
+    if (finalConfidence >= 0.85) {
+      verdict = 'verified';
+    } else if (finalConfidence >= 0.60) {
+      verdict = 'uncertain';
+    } else {
+      verdict = 'rejected';
+    }
+
+    // Build comprehensive reason
+    const reasons = [result.reason];
+    if (geofenceResult.distance !== null) {
+      reasons.push(geofenceResult.reason);
+    }
+    if (antispoofResult.flags.length > 0) {
+      reasons.push(`Security: ${antispoofResult.flags.join(', ')}`);
+    }
+
     const normalizedResult: AIVerificationResult = {
-      quest_match: Math.max(0, Math.min(1, result.quest_match || 0)),
-      geolocation_match: Math.max(0, Math.min(1, result.geolocation_match || 0)),
-      authenticity_score: Math.max(0, Math.min(1, result.authenticity_score || 0)),
-      scene_relevance: Math.max(0, Math.min(1, result.scene_relevance || 0)),
-      final_confidence: Math.max(0, Math.min(1, result.final_confidence || 0)),
-      verdict: result.verdict || (result.final_confidence >= 0.85 ? 'verified' : result.final_confidence >= 0.60 ? 'uncertain' : 'rejected'),
-      reason: result.reason || 'AI analysis completed',
+      quest_match: questMatch,
+      geolocation_match: geofenceResult.score,
+      authenticity_score: antispoofResult.score,
+      scene_relevance: sceneRelevance,
+      final_confidence: finalConfidence,
+      verdict,
+      reason: reasons.join(' | '),
+      exif_data: exifData.hasExif ? {
+        latitude: exifData.latitude,
+        longitude: exifData.longitude,
+        timestamp: exifData.timestamp
+      } : undefined
     };
 
     console.log('Verification result:', normalizedResult);
