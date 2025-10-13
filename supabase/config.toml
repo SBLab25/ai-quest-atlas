@@ -1,7 +1,7 @@
 project_id = "afglpoufxxgdxylvgeex"
 
 [functions.ai-photo-verification]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-content-moderation]
 verify_jwt = true
