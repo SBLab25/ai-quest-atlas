@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as ExifReader from "https://esm.sh/exifreader@4.21.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,7 +73,7 @@ serve(async (req) => {
     console.log('🔍 Verification request:', { 
       submissionId: body.submissionId, 
       photoUrl: body.photoUrl?.substring(0, 50) + '...',
-      userId: user.id,
+      userId: userId,
       questTitle: body.questTitle,
       questDescription: body.questDescription?.substring(0, 50) + '...'
     });
@@ -272,7 +271,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-// Extract EXIF data from image
+// Extract EXIF data from image (placeholder - requires exif-reader library)
 async function extractExifData(imageUrl: string): Promise<{
   latitude?: number;
   longitude?: number;
@@ -281,25 +280,10 @@ async function extractExifData(imageUrl: string): Promise<{
   hasExif: boolean;
 }> {
   try {
-    console.log('📸 Extracting EXIF data...');
-    const response = await fetch(imageUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const tags = ExifReader.load(arrayBuffer);
-
-    const latitude = tags.GPSLatitude?.description ? parseFloat(tags.GPSLatitude.description) : undefined;
-    const longitude = tags.GPSLongitude?.description ? parseFloat(tags.GPSLongitude.description) : undefined;
-    const timestamp = tags.DateTime?.description || tags.DateTimeOriginal?.description;
-    const camera = tags.Model?.description;
-
-    console.log('EXIF extracted:', { latitude, longitude, timestamp, camera });
-
-    return {
-      latitude,
-      longitude,
-      timestamp,
-      camera,
-      hasExif: !!(latitude || longitude || timestamp)
-    };
+    console.log('📸 EXIF extraction requested but not implemented (requires exif-reader library)');
+    // TODO: Implement EXIF extraction when exif-reader is properly configured for Deno
+    // For now, return empty EXIF data
+    return { hasExif: false };
   } catch (error) {
     console.error('EXIF extraction error:', error);
     return { hasExif: false };
