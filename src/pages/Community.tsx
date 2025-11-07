@@ -13,10 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Heart, MessageCircle, Send, Share2, Filter, Plus, Tag, Image, MapPin, Clock, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { MultiImageUpload } from "@/components/ui/multi-image-upload";
 import { PostImageCarousel } from "@/components/ui/post-image-carousel";
 import { SimpleTeamDialog } from "@/components/teams/SimpleTeamDialog";
 import CrewSidebar from "@/components/community/CrewSidebar";
+import { TeamChatPanel } from "@/components/community/TeamChatPanel";
 
 // Unified interface for all posts (community posts + quest submissions)
 interface UnifiedPost {
@@ -36,19 +38,6 @@ interface UnifiedPost {
   shares_count?: number;
   user_has_liked: boolean;
   user_has_shared?: boolean;
-  user_profile?: {
-    username: string | null;
-    full_name: string | null;
-    avatar_url: string | null;
-  };
-}
-
-interface Comment {
-  id: string;
-  user_id: string;
-  post_id: string;
-  content: string;
-  created_at: string;
   user_profile?: {
     username: string | null;
     full_name: string | null;
@@ -110,9 +99,14 @@ const Community = () => {
     const refetch = () => fetchPosts();
     window.addEventListener('submissions-changed', refetch);
     window.addEventListener('community-posts-changed', refetch);
+    // Refresh posts when likes/comments change
+    const refreshInterval = setInterval(() => {
+      fetchPosts();
+    }, 30000); // Refresh every 30 seconds to sync data
     return () => {
       window.removeEventListener('submissions-changed', refetch);
       window.removeEventListener('community-posts-changed', refetch);
+      clearInterval(refreshInterval);
     };
   }, []);
 
@@ -138,10 +132,10 @@ const Community = () => {
           .select("id, user_id, title, content, post_type, tags, image_urls, created_at")
           .order("created_at", { ascending: false }),
         
-        // Quest submissions (verified)
+        // Quest submissions (verified) - exclude quest_id from display
         supabase
           .from("Submissions")
-          .select("id, description, photo_url, image_urls, user_id, geo_location, submitted_at")
+          .select("id, description, photo_url, image_urls, user_id, geo_location, submitted_at, quest_id")
           .eq("status", "verified")
           .order("submitted_at", { ascending: false })
       ]);
@@ -220,9 +214,10 @@ const Community = () => {
             supabase.from("post_shares").select("user_id").eq("submission_id", s.id)
           ]);
 
-          const likes = likesRes.data || [];
-          const comments = commentsRes.data || [];
-          const shares = sharesRes.data || [];
+          // Ensure we have valid data arrays
+          const likes = (likesRes.data || []);
+          const comments = (commentsRes.data || []);
+          const shares = (sharesRes.data || []);
           const profile = allProfiles.find((pr) => pr.id === s.user_id);
 
           // Process image URLs - ensure consistency between quest submissions and community posts
@@ -234,12 +229,15 @@ const Community = () => {
             processedImageUrls = [s.photo_url];
           }
 
+          // Clean description to remove AI quest ID metadata if present
+          const cleanDescription = s.description?.replace(/\n\[AI_QUEST_ID:[a-f0-9-]+\]/i, '').trim() || '';
+          
           return {
             id: s.id,
             user_id: s.user_id,
             type: 'quest',
-            content: s.description || '',
-            description: s.description,
+            content: cleanDescription,
+            description: cleanDescription,
             image_urls: processedImageUrls,
             created_at: s.submitted_at,
             geo_location: s.geo_location,
@@ -422,6 +420,36 @@ const Community = () => {
     }
   };
 
+
+  const refreshPostCommentCount = async (postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    try {
+      let commentsRes;
+      if (post.type === 'community') {
+        commentsRes = await (supabase as any)
+          .from("community_post_comments")
+          .select("id")
+          .eq("post_id", postId);
+      } else {
+        commentsRes = await supabase
+          .from("post_comments")
+          .select("id")
+          .eq("submission_id", postId);
+      }
+
+      if (commentsRes.error) throw commentsRes.error;
+      const commentsCount = (commentsRes.data || []).length;
+
+      setPosts(prev => prev.map(p => 
+        p.id === postId ? { ...p, comments_count: commentsCount } : p
+      ));
+    } catch (err) {
+      console.error("Error refreshing comment count:", err);
+    }
+  };
+
   const handleUserProfileClick = (userId: string) => {
     if (userId && user && userId !== user.id) {
       navigate(`/profile/${userId}`);
@@ -467,98 +495,7 @@ const Community = () => {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Share achievements, get help, and connect with fellow adventurers</p>
           </div>
 
-          {/* Action Bar */}
-          <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-lg">
-            <CardContent className="p-4">
-              <div className="flex gap-2">
-                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Post
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md mx-auto">
-                      <DialogHeader>
-                        <DialogTitle>Share with Community</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <Input 
-                          placeholder="Post title" 
-                          value={title} 
-                          onChange={(e) => setTitle(e.target.value)} 
-                        />
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={postType}
-                            onChange={(e) => setPostType(e.target.value as any)}
-                          >
-                            <option value="general">General</option>
-                            <option value="help">Help</option>
-                            <option value="achievement">Achievement</option>
-                            <option value="discussion">Discussion</option>
-                          </select>
-                          <Input 
-                            placeholder="Tags (comma separated)" 
-                            value={tagsInput} 
-                            onChange={(e) => setTagsInput(e.target.value)} 
-                          />
-                        </div>
-                        <Textarea 
-                          placeholder="Write your post..." 
-                          value={content} 
-                          onChange={(e) => setContent(e.target.value)} 
-                          className="min-h-[100px]" 
-                        />
-                        
-                        {/* Multi-Image Upload */}
-                        <div>
-                          <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                            <Image className="h-4 w-4" />
-                            Add Images (Optional, up to 3)
-                          </label>
-                          <MultiImageUpload
-                            onImagesUpdate={setImageUrls}
-                            existingImages={imageUrls}
-                            maxImages={3}
-                            bucket="community-images"
-                            path="community-posts"
-                          />
-                        </div>
-                        
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setShowCreateDialog(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={() => {
-                              handleCreatePost();
-                              setShowCreateDialog(false);
-                            }} 
-                            disabled={!title.trim() || !content.trim() || creating}
-                          >
-                            {creating ? "Posting..." : "Share"}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                </Dialog>
-                
-                <Button 
-                  variant="outline" 
-                  className="border-border/50 hover:bg-accent/20"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Action Bar - Removed, filter button moved to bottom right */}
 
           {/* Filters Panel */}
           {showFilters && (
@@ -769,15 +706,6 @@ const Community = () => {
                             {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
                           </p>
                         )}
-
-                        {post.comments_count > 0 && (
-                          <button
-                            className="text-sm text-muted-foreground mt-1 hover:text-foreground"
-                            onClick={() => navigate(`/post/${post.id}`)}
-                          >
-                            View all {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -787,10 +715,116 @@ const Community = () => {
           </div>
         </div>
         
-        {/* Team-Up Button - Fixed position bottom right */}
-        <div className="fixed bottom-6 right-6 z-50">
+        {/* Create Post Button - Fixed position right side, above chat button with 15px gap */}
+        <div className="fixed bottom-[158px] right-6 z-50">
+          <motion.div
+            initial={{ scale: 0, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="relative"
+          >
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button
+                    size="lg"
+                    className="rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 p-0"
+                  >
+                    <Plus className="h-7 w-7" />
+                  </Button>
+                </motion.div>
+              </DialogTrigger>
+              <DialogContent className="max-w-md mx-auto">
+              <DialogHeader>
+                <DialogTitle>Share with Community</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input 
+                  placeholder="Post title" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                />
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={postType}
+                    onChange={(e) => setPostType(e.target.value as any)}
+                  >
+                    <option value="general">General</option>
+                    <option value="help">Help</option>
+                    <option value="achievement">Achievement</option>
+                    <option value="discussion">Discussion</option>
+                  </select>
+                  <Input 
+                    placeholder="Tags (comma separated)" 
+                    value={tagsInput} 
+                    onChange={(e) => setTagsInput(e.target.value)} 
+                  />
+                </div>
+                <Textarea 
+                  placeholder="Write your post..." 
+                  value={content} 
+                  onChange={(e) => setContent(e.target.value)} 
+                  className="min-h-[100px]" 
+                />
+                
+                {/* Multi-Image Upload */}
+                <div>
+                  <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <Image className="h-4 w-4" />
+                    Add Images (Optional, up to 3)
+                  </label>
+                  <MultiImageUpload
+                    onImagesUpdate={setImageUrls}
+                    existingImages={imageUrls}
+                    maxImages={3}
+                    bucket="community-images"
+                    path="community-posts"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowCreateDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      handleCreatePost();
+                      setShowCreateDialog(false);
+                    }} 
+                    disabled={!title.trim() || !content.trim() || creating}
+                  >
+                    {creating ? "Posting..." : "Share"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          </motion.div>
+        </div>
+
+        {/* Team-Up Button and Filter Button - Fixed position bottom right */}
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="lg"
+            className="rounded-full h-12 w-12 border-border/50 hover:bg-accent/20 shadow-lg"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-5 w-5" />
+          </Button>
           <SimpleTeamDialog />
         </div>
+
+        {/* Team Chat Panel - Fixed position bottom left */}
+        <TeamChatPanel />
       </main>
 
     </div>

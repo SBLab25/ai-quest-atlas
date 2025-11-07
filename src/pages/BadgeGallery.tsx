@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar as CalendarIcon, Coins, Award, RefreshCw } from 'lucide-react';
+import { Trophy, Calendar as CalendarIcon, Coins, Award, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
 import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +13,11 @@ import { TopNavbar } from '@/components/navigation/TopNavbar';
 import { useUserBadges } from "@/hooks/useUserBadges";
 import { usePoints } from "@/hooks/usePoints";
 import { useBadgeAwarding } from "@/hooks/useBadgeAwarding";
+import { useGamification } from '@/hooks/useGamification';
+import { AchievementCard } from '@/components/gamification/AchievementCard';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 
 interface BadgeData {
   id: string;
@@ -39,9 +43,14 @@ const BadgeGallery = () => {
   const [loading, setLoading] = useState(true);
   const { points, loading: pointsLoading, recalculatePoints, getPointsHistory } = usePoints();
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'exploration' | 'consistency' | 'creativity' | 'social'>('all');
+  const [rarityFilter, setRarityFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
   
   // Initialize badge awarding system
   useBadgeAwarding();
+  
+  // Get gamification data for achievements
+  const { achievements, userAchievements, loading: achievementsLoading } = useGamification();
 
   const handleRecalculatePoints = async () => {
     try {
@@ -133,7 +142,36 @@ const BadgeGallery = () => {
     return userBadges.find(ub => ub.badge_id === badgeId);
   };
 
-  if (loading) {
+  // Achievement filtering logic
+  const getUnlockedCount = (category?: string) => {
+    const relevantAchievements = category 
+      ? achievements.filter(a => a.category === category)
+      : achievements;
+    const unlockedIds = new Set(userAchievements.map(ua => ua.achievement_id));
+    return relevantAchievements.filter(a => unlockedIds.has(a.id)).length;
+  };
+
+  const getTotalCount = (category?: string) => {
+    return category 
+      ? achievements.filter(a => a.category === category).length
+      : achievements.length;
+  };
+
+  const filteredAchievements = achievements.filter(achievement => {
+    const categoryMatch = categoryFilter === 'all' || achievement.category === categoryFilter;
+    const rarityMatch = rarityFilter === 'all' || achievement.rarity === rarityFilter;
+    return categoryMatch && rarityMatch;
+  });
+
+  const unlockedIds = new Set(userAchievements.map(ua => ua.achievement_id));
+  const unlockedAchievements = filteredAchievements.filter(a => unlockedIds.has(a.id));
+  const lockedAchievements = filteredAchievements.filter(a => !unlockedIds.has(a.id));
+
+  const achievementProgressPercentage = achievements.length > 0 
+    ? (getUnlockedCount() / getTotalCount()) * 100 
+    : 0;
+
+  if (loading || achievementsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -148,16 +186,21 @@ const BadgeGallery = () => {
       <main className="container mx-auto px-6 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-4">
-            Badge Gallery
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-2xl">
+              <Trophy className="w-10 h-10 text-yellow-600" />
+            </div>
+          </div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-600 bg-clip-text text-transparent mb-4">
+            Treasure Vault
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Showcase your achievements and track your collection progress across all adventures.
+            Your collection of badges, achievements, and points earned throughout your journey
           </p>
         </div>
 
-        {/* Achievement Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -171,7 +214,7 @@ const BadgeGallery = () => {
                         <p className="text-3xl font-bold text-yellow-600 animate-fade-in">
                           {pointsLoading ? '...' : points.total_points.toLocaleString()}
                         </p>
-                        <p className="text-sm text-muted-foreground">Current Points</p>
+                        <p className="text-sm text-muted-foreground">Current Score</p>
                       </div>
                     </div>
                   </CardContent>
@@ -206,7 +249,7 @@ const BadgeGallery = () => {
                   </div>
                   <div className="border-t pt-2 mt-3">
                     <div className="flex justify-between items-center font-semibold text-yellow-600">
-                      <span>Total Points</span>
+                      <span>Total Score</span>
                       <span>{points.total_points.toLocaleString()}</span>
                     </div>
                   </div>
@@ -258,7 +301,23 @@ const BadgeGallery = () => {
                   <p className="text-3xl font-bold">
                     {Math.round((new Set(userBadges.map(b => b.badge_id)).size / Math.max(allBadges.length, 1)) * 100)}%
                   </p>
-                  <p className="text-sm text-muted-foreground">Collection Rate</p>
+                  <p className="text-sm text-muted-foreground">Badge Rate</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-purple-500/10 hover:shadow-lg transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-purple-500/10 rounded-full">
+                  <Sparkles className="h-6 w-6 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold">
+                    {getUnlockedCount()} / {getTotalCount()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Achievements</p>
                 </div>
               </div>
             </CardContent>
@@ -331,65 +390,80 @@ const BadgeGallery = () => {
           </div>
         )}
 
-        {/* Earned Badges */}
-        {userBadges.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-8 flex items-center gap-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              <div className="p-2 bg-primary/10 rounded-full">
-                <Trophy className="h-6 w-6 text-primary" />
-              </div>
-              Your Achievements
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userBadges.map((userBadge) => (
-                <Card key={userBadge.id} className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                  <CardHeader className="text-center">
-                    <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full flex items-center justify-center mb-4 shadow-lg">
-                      {userBadge.badge.icon_url ? (
-                        userBadge.badge.icon_url.startsWith('http') ? (
-                          <img 
-                            src={userBadge.badge.icon_url} 
-                            alt={userBadge.badge.name}
-                            className="w-8 h-8"
-                          />
-                        ) : (
-                          <span className="text-3xl">{userBadge.badge.icon_url}</span>
-                        )
-                      ) : (
-                        <Trophy className="h-8 w-8 text-primary" />
-                      )}
-                    </div>
-                    <CardTitle className="text-xl font-bold">{userBadge.badge.name}</CardTitle>
-                    <CardDescription className="text-base">{userBadge.badge.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center">
-                      <Badge className="mb-3 bg-gradient-to-r from-primary to-primary/80 text-white border-0">
-                        ✨ Achieved
-                      </Badge>
-                      <p className="text-sm text-muted-foreground font-medium">
-                        Earned on {new Date(userBadge.earned_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Tabbed Content */}
+        <Tabs defaultValue="badges" className="mb-8">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+            <TabsTrigger value="badges" className="flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Badges
+            </TabsTrigger>
+            <TabsTrigger value="achievements" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Achievements
+            </TabsTrigger>
+          </TabsList>
 
-        {/* All Badges */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-8 flex items-center gap-3">
-            <div className="p-2 bg-muted/30 rounded-full">
-              <Trophy className="h-6 w-6 text-muted-foreground" />
-            </div>
-            Complete Collection
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allBadges.map((badge) => {
-              const earnedBadge = getBadgeStatus(badge.id);
-              const isEarned = !!earnedBadge;
+          {/* BADGES TAB */}
+          <TabsContent value="badges" className="space-y-12">
+            {/* Earned Badges */}
+            {userBadges.length > 0 && (
+              <div>
+                <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <Trophy className="h-6 w-6 text-primary" />
+                  </div>
+                  Your Badges
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userBadges.map((userBadge) => (
+                    <Card key={userBadge.id} className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                      <CardHeader className="text-center">
+                        <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                          {userBadge.badge.icon_url ? (
+                            userBadge.badge.icon_url.startsWith('http') ? (
+                              <img 
+                                src={userBadge.badge.icon_url} 
+                                alt={userBadge.badge.name}
+                                className="w-8 h-8"
+                              />
+                            ) : (
+                              <span className="text-3xl">{userBadge.badge.icon_url}</span>
+                            )
+                          ) : (
+                            <Trophy className="h-8 w-8 text-primary" />
+                          )}
+                        </div>
+                        <CardTitle className="text-xl font-bold">{userBadge.badge.name}</CardTitle>
+                        <CardDescription className="text-base">{userBadge.badge.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center">
+                          <Badge className="mb-3 bg-gradient-to-r from-primary to-primary/80 text-white border-0">
+                            ✨ Achieved
+                          </Badge>
+                          <p className="text-sm text-muted-foreground font-medium">
+                            Earned on {new Date(userBadge.earned_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* All Badges */}
+            <div>
+              <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3">
+                <div className="p-2 bg-muted/30 rounded-full">
+                  <Trophy className="h-6 w-6 text-muted-foreground" />
+                </div>
+                Complete Badge Collection
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allBadges.map((badge) => {
+                  const earnedBadge = getBadgeStatus(badge.id);
+                  const isEarned = !!earnedBadge;
               
               return (
                 <Card 
@@ -441,8 +515,187 @@ const BadgeGallery = () => {
                 </Card>
               );
             })}
-          </div>
-        </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ACHIEVEMENTS TAB */}
+          <TabsContent value="achievements" className="space-y-8">
+            {/* Achievement Progress Card */}
+            <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-500" />
+                  Overall Achievement Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold">{getUnlockedCount()} / {getTotalCount()}</span>
+                    <span className="text-sm text-muted-foreground">{achievementProgressPercentage.toFixed(0)}% Complete</span>
+                  </div>
+                  <Progress value={achievementProgressPercentage} className="h-3" />
+                  
+                  {/* Category Breakdown */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <div className="text-xl mb-1">🗺️</div>
+                      <div className="text-sm font-semibold">{getUnlockedCount('exploration')} / {getTotalCount('exploration')}</div>
+                      <div className="text-xs text-muted-foreground">Exploration</div>
+                    </div>
+                    <div className="text-center p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                      <div className="text-xl mb-1">🔥</div>
+                      <div className="text-sm font-semibold">{getUnlockedCount('consistency')} / {getTotalCount('consistency')}</div>
+                      <div className="text-xs text-muted-foreground">Consistency</div>
+                    </div>
+                    <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                      <div className="text-xl mb-1">🎨</div>
+                      <div className="text-sm font-semibold">{getUnlockedCount('creativity')} / {getTotalCount('creativity')}</div>
+                      <div className="text-xs text-muted-foreground">Creativity</div>
+                    </div>
+                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <div className="text-xl mb-1">👥</div>
+                      <div className="text-sm font-semibold">{getUnlockedCount('social')} / {getTotalCount('social')}</div>
+                      <div className="text-xs text-muted-foreground">Social</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Filters */}
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={categoryFilter === 'all' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setCategoryFilter('all')}
+                >
+                  All Categories
+                </Badge>
+                <Badge
+                  variant={categoryFilter === 'exploration' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setCategoryFilter('exploration')}
+                >
+                  🗺️ Exploration
+                </Badge>
+                <Badge
+                  variant={categoryFilter === 'consistency' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setCategoryFilter('consistency')}
+                >
+                  🔥 Consistency
+                </Badge>
+                <Badge
+                  variant={categoryFilter === 'creativity' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setCategoryFilter('creativity')}
+                >
+                  🎨 Creativity
+                </Badge>
+                <Badge
+                  variant={categoryFilter === 'social' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setCategoryFilter('social')}
+                >
+                  👥 Social
+                </Badge>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={rarityFilter === 'all' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setRarityFilter('all')}
+                >
+                  All Rarities
+                </Badge>
+                <Badge
+                  variant={rarityFilter === 'common' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all bg-gray-500/10 text-gray-600 border-gray-500/20"
+                  onClick={() => setRarityFilter('common')}
+                >
+                  Common
+                </Badge>
+                <Badge
+                  variant={rarityFilter === 'rare' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all bg-blue-500/10 text-blue-600 border-blue-500/20"
+                  onClick={() => setRarityFilter('rare')}
+                >
+                  Rare
+                </Badge>
+                <Badge
+                  variant={rarityFilter === 'epic' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all bg-purple-500/10 text-purple-600 border-purple-500/20"
+                  onClick={() => setRarityFilter('epic')}
+                >
+                  Epic
+                </Badge>
+                <Badge
+                  variant={rarityFilter === 'legendary' ? 'default' : 'outline'}
+                  className="cursor-pointer hover:shadow-md transition-all bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                  onClick={() => setRarityFilter('legendary')}
+                >
+                  Legendary
+                </Badge>
+              </div>
+            </div>
+
+            {/* Unlocked Achievements */}
+            {unlockedAchievements.length > 0 && (
+              <div>
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-500" />
+                  Unlocked Achievements ({unlockedAchievements.length})
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {unlockedAchievements.map((achievement) => {
+                    const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id);
+                    return (
+                      <AchievementCard
+                        key={achievement.id}
+                        achievement={achievement}
+                        unlocked={true}
+                        unlockedAt={userAchievement?.unlocked_at}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Locked Achievements */}
+            {lockedAchievements.length > 0 && (
+              <div>
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-muted-foreground">
+                  <Trophy className="h-5 w-5" />
+                  Locked Achievements ({lockedAchievements.length})
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {lockedAchievements.map((achievement) => (
+                    <AchievementCard
+                      key={achievement.id}
+                      achievement={achievement}
+                      unlocked={false}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {unlockedAchievements.length === 0 && lockedAchievements.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground">No achievements found</p>
+                  <p className="text-sm text-muted-foreground/70 mt-2">Complete quests to start earning achievements!</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

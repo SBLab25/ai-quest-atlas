@@ -39,8 +39,19 @@ export const ProfileDropdown = () => {
   }, [user?.id]);
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/auth");
+    try {
+      // Sign out and clear state immediately
+      await signOut();
+      // Force full page reload to clear all cached state and ensure clean redirect
+      // Small delay to ensure signOut completes
+      setTimeout(() => {
+        window.location.href = "/auth";
+      }, 200);
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force redirect even if signOut fails
+      window.location.href = "/auth";
+    }
   };
 
   const displayName = profile?.username || profile?.full_name || user?.email || "User";

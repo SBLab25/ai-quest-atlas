@@ -15,11 +15,14 @@ import { QuestRecommendations } from "@/components/performance/QuestRecommendati
 import { QuestSuggestionsCarousel } from "@/components/quest/QuestSuggestionsCarousel";
 import { TopNavbar } from "@/components/navigation/TopNavbar";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
-import { AIQuestGenerator } from "@/components/quest/AIQuestGenerator";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { useUserBadges } from "@/hooks/useUserBadges";
 import { GamificationDashboard } from "@/components/gamification/GamificationDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SuggestedUsers } from "@/components/social/SuggestedUsers";
+import { LottieLoading } from "@/components/ui/LottieLoading";
+import { DailyExercisePopup } from "@/components/exercises/DailyExercisePopup";
+import { useDailyExercise } from "@/hooks/useDailyExercise";
 
 interface Quest {
   id: string;
@@ -45,10 +48,34 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [featuredQuestIndex, setFeaturedQuestIndex] = useState(0);
   const [availableCount, setAvailableCount] = useState<number>(0);
+  const [showExercisePopup, setShowExercisePopup] = useState(false);
+  const { shouldShowPopup, markAsShown, refetch: refetchExercise, loading: exerciseLoading } = useDailyExercise();
 
   useEffect(() => {
     trackPageView('/home');
   }, []); // Remove trackPageView from dependencies to prevent infinite loop
+
+  // Show daily exercise popup on first login of the day
+  useEffect(() => {
+    // Only check after user is loaded and hook is ready
+    if (!user || exerciseLoading) return;
+    
+    try {
+      if (shouldShowPopup && typeof shouldShowPopup === 'function' && shouldShowPopup()) {
+        // Small delay to let page load first
+        const timer = setTimeout(() => {
+          setShowExercisePopup(true);
+          if (markAsShown && typeof markAsShown === 'function') {
+            markAsShown();
+          }
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    } catch (error) {
+      console.error('Error checking if should show exercise popup:', error);
+      // Don't block page rendering if there's an error
+    }
+  }, [user, exerciseLoading, shouldShowPopup, markAsShown]);
 
   useEffect(() => {
     const fetchQuests = async () => {
@@ -90,12 +117,14 @@ const Home = () => {
         setQuests(combinedQuests);
 
         // Compute user-specific available count (exclude user's submitted/finished quests)
+        // Exclude rejected submissions - they allow resubmission
         let completedIds = new Set<string>();
         if (user) {
           const { data: subs } = await supabase
             .from('Submissions')
-            .select('quest_id')
-            .eq('user_id', user.id);
+            .select('quest_id, status')
+            .eq('user_id', user.id)
+            .neq('status', 'rejected'); // Ignore rejected submissions
           subs?.forEach((s: any) => completedIds.add(s.quest_id));
         }
 
@@ -264,7 +293,7 @@ const Home = () => {
                 </TabsTrigger>
                 <TabsTrigger value="gamification" className="flex items-center gap-2">
                   <Zap className="h-4 w-4" />
-                  Achievements & XP
+                  Challenges & XP
                 </TabsTrigger>
               </TabsList>
 
@@ -278,9 +307,6 @@ const Home = () => {
                 <SearchAndFilter quests={allQuests} onFilteredQuests={handleFilteredQuests} />
               {/* AI-Powered Quest Suggestions */}
               <QuestSuggestionsCarousel />
-
-              {/* AI Quest Generator */}
-              <AIQuestGenerator />
 
               {/* Featured Quest */}
               <div>
@@ -337,7 +363,7 @@ const Home = () => {
                   <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5">
                     <CardContent className="flex items-center justify-center h-64">
                       {loading ? (
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        <LottieLoading size="md" />
                       ) : (
                         <div className="text-center">
                           <DiscoveryAtlasIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
@@ -359,14 +385,25 @@ const Home = () => {
             </Tabs>
           </div>
 
-          {/* Right Side - Calendar */}
+          {/* Right Side - Calendar & Social */}
           <div className="xl:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-6">
               <MiniCalendar />
+              <SuggestedUsers />
             </div>
           </div>
         </div>
       </main>
+
+      {/* Daily Exercise Popup */}
+      <DailyExercisePopup
+        open={showExercisePopup}
+        onClose={() => setShowExercisePopup(false)}
+        onComplete={() => {
+          refetchExercise();
+          setShowExercisePopup(false);
+        }}
+      />
     </div>
   );
 };

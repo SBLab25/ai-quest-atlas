@@ -22,9 +22,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Force a small delay to ensure state updates properly
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+        }
       }
     );
 
@@ -61,7 +68,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // Clear user state immediately
+      setUser(null);
+      setSession(null);
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Still clear local state even if API call fails
+      setUser(null);
+      setSession(null);
+    }
   };
 
   return (

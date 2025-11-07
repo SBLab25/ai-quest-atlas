@@ -50,7 +50,69 @@ export const QuestHistory: React.FC<QuestHistoryProps> = ({ userId }) => {
         .order('submitted_at', { ascending: false });
 
       if (error) throw error;
-      setSubmissions(data || []);
+
+      // Process submissions to extract AI quest IDs and fetch their details
+      const submissionsWithQuests = await Promise.all((data || []).map(async (submission: any) => {
+        // If quest is already linked (regular quest), return as is
+        if (submission.quest) {
+          return submission;
+        }
+
+        // For AI quests, extract quest ID from description
+        const aiQuestIdPattern = /\[AI_QUEST_ID:([a-f0-9-]+)\]/i;
+        const match = submission.description?.match(aiQuestIdPattern);
+        
+        if (match && match[1]) {
+          const aiQuestId = match[1];
+          
+          // Try to fetch from ai_generated_quests first
+          const { data: aiQuest, error: aiError } = await supabase
+            .from('ai_generated_quests')
+            .select('id, title, description, difficulty, location, quest_type')
+            .eq('id', aiQuestId)
+            .maybeSingle();
+
+          if (aiQuest && !aiError) {
+            return {
+              ...submission,
+              quest: {
+                id: aiQuest.id,
+                title: aiQuest.title,
+                description: aiQuest.description,
+                difficulty: aiQuest.difficulty,
+                location: aiQuest.location,
+                quest_type: aiQuest.quest_type
+              }
+            };
+          }
+
+          // If not found, try suggested_quests
+          const { data: suggestedQuest, error: suggestedError } = await supabase
+            .from('suggested_quests')
+            .select('id, title, description, difficulty, location, quest_type')
+            .eq('id', aiQuestId)
+            .maybeSingle();
+
+          if (suggestedQuest && !suggestedError) {
+            return {
+              ...submission,
+              quest: {
+                id: suggestedQuest.id,
+                title: suggestedQuest.title,
+                description: suggestedQuest.description,
+                difficulty: suggestedQuest.difficulty,
+                location: suggestedQuest.location,
+                quest_type: suggestedQuest.quest_type
+              }
+            };
+          }
+        }
+
+        // Return submission as is if no AI quest ID found
+        return submission;
+      }));
+
+      setSubmissions(submissionsWithQuests);
     } catch (error) {
       console.error('Error fetching quest history:', error);
     } finally {
@@ -275,11 +337,15 @@ export const QuestHistory: React.FC<QuestHistoryProps> = ({ userId }) => {
                       </p>
                     )}
 
-                    {submission.description && (
-                      <p className="text-sm text-foreground bg-muted/50 p-2 rounded italic">
-                        "{submission.description}"
-                      </p>
-                    )}
+                    {submission.description && (() => {
+                      // Remove AI quest ID metadata from description for display
+                      const cleanDescription = submission.description.replace(/\n\[AI_QUEST_ID:[a-f0-9-]+\]/i, '').trim();
+                      return cleanDescription ? (
+                        <p className="text-sm text-foreground bg-muted/50 p-2 rounded italic">
+                          "{cleanDescription}"
+                        </p>
+                      ) : null;
+                    })()}
 
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       {submission.quest?.location && (

@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Brain, CheckCircle2, AlertTriangle, XCircle, RefreshCw, Shield } from 'lucide-react';
+import { Brain, CheckCircle2, AlertTriangle, XCircle, RefreshCw, Shield, Bot, Sparkles, RotateCcw, Image } from 'lucide-react';
 import { AIPhotoVerificationService } from '@/services/aiPhotoVerification';
 
 interface AIVerification {
@@ -27,6 +27,10 @@ interface AIVerification {
   admin_override: boolean;
   admin_override_reason: string | null;
   verified_at: string;
+  deepfake_verdict?: string | null;
+  deepfake_confidence?: number | null;
+  analysis_report?: string | null;
+  analyzed_at?: string | null;
   profiles?: {
     username: string;
     full_name: string;
@@ -53,6 +57,7 @@ export const AIVerificationLogs: React.FC = () => {
   const [selectedVerification, setSelectedVerification] = useState<AIVerification | null>(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [analyzingVerificationId, setAnalyzingVerificationId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -185,6 +190,179 @@ export const AIVerificationLogs: React.FC = () => {
     }
   };
 
+  const resetDeepfakeVerdict = async (verificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('ai_verifications' as any)
+        .update({
+          deepfake_verdict: null,
+          deepfake_confidence: null,
+        } as any)
+        .eq('id', verificationId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Deepfake Verdict Reset',
+        description: 'Deepfake verdict has been cleared. You can now run analysis again.',
+      });
+
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error resetting deepfake verdict:', error);
+      toast({
+        title: 'Reset Failed',
+        description: error?.message || 'Failed to reset deepfake verdict. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const resetAnalysis = async (verificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('ai_verifications' as any)
+        .update({
+          analysis_report: null,
+        } as any)
+        .eq('id', verificationId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Analysis Reset',
+        description: 'Analysis report has been cleared. You can now run analysis again.',
+      });
+
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error resetting analysis:', error);
+      toast({
+        title: 'Reset Failed',
+        description: error?.message || 'Failed to reset analysis. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const runDeepfakeAnalysis = async (verificationId: string, photoUrl: string) => {
+    if (!photoUrl) {
+      toast({
+        title: 'Error',
+        description: 'No photo available for analysis',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setAnalyzingVerificationId(verificationId);
+    try {
+      toast({
+        title: 'Deepfake Detection Started',
+        description: 'Running deepfake detection...',
+      });
+
+      console.log('Calling deepfake-detection function with:', { verificationId, photoUrl: photoUrl?.substring(0, 50) + '...' });
+      
+      const { data, error } = await supabase.functions.invoke('deepfake-detection', {
+        body: {
+          verificationId,
+          photoUrl,
+        },
+      });
+
+      console.log('Function response:', { data, error });
+
+      if (error) {
+        console.error('Function error details:', error);
+        // Provide more helpful error message
+        if (error.message?.includes('Failed to send a request')) {
+          throw new Error('Edge Function not found or not deployed. Please deploy the deepfake-detection function to Supabase.');
+        }
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({
+          title: 'Deepfake Detection Complete',
+          description: 'Deepfake detection completed successfully',
+        });
+        // Refresh verifications to show updated data
+        await fetchData();
+      } else {
+        throw new Error(data?.error || 'Deepfake detection failed');
+      }
+    } catch (error: any) {
+      console.error('Error running deepfake detection:', error);
+      toast({
+        title: 'Deepfake Detection Failed',
+        description: error?.message || 'Failed to run deepfake detection. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setAnalyzingVerificationId(null);
+    }
+  };
+
+  const runGroqAnalysis = async (verificationId: string, photoUrl: string) => {
+    if (!photoUrl) {
+      toast({
+        title: 'Error',
+        description: 'No photo available for analysis',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setAnalyzingVerificationId(verificationId);
+    try {
+      toast({
+        title: 'Groq Analysis Started',
+        description: 'Running image analysis...',
+      });
+
+      console.log('Calling groq-analysis function with:', { verificationId, photoUrl: photoUrl?.substring(0, 50) + '...' });
+      
+      const { data, error } = await supabase.functions.invoke('groq-analysis', {
+        body: {
+          verificationId,
+          photoUrl,
+        },
+      });
+
+      console.log('Function response:', { data, error });
+
+      if (error) {
+        console.error('Function error details:', error);
+        // Provide more helpful error message
+        if (error.message?.includes('Failed to send a request')) {
+          throw new Error('Edge Function not found or not deployed. Please deploy the groq-analysis function to Supabase.');
+        }
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({
+          title: 'Groq Analysis Complete',
+          description: 'Image analysis completed successfully',
+        });
+        // Refresh verifications to show updated data
+        await fetchData();
+      } else {
+        throw new Error(data?.error || 'Groq analysis failed');
+      }
+    } catch (error: any) {
+      console.error('Error running Groq analysis:', error);
+      toast({
+        title: 'Groq Analysis Failed',
+        description: error?.message || 'Failed to run Groq analysis. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setAnalyzingVerificationId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -265,7 +443,9 @@ export const AIVerificationLogs: React.FC = () => {
                 <TableHead>User</TableHead>
                 <TableHead>Verdict</TableHead>
                 <TableHead>Confidence</TableHead>
-                <TableHead>Model</TableHead>
+                <TableHead>Deepfake Verdict</TableHead>
+                <TableHead>Analysis</TableHead>
+                <TableHead>Submission</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -302,7 +482,123 @@ export const AIVerificationLogs: React.FC = () => {
                       {Math.round(verification.final_confidence * 100)}%
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">{verification.model_used}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {verification.deepfake_verdict ? (
+                        <>
+                          <Badge
+                            variant={verification.deepfake_verdict === 'FAKE' ? 'destructive' : 'default'}
+                          >
+                            {verification.deepfake_verdict}
+                            {verification.deepfake_confidence !== null && verification.deepfake_confidence !== undefined && (
+                              <span className="ml-1 text-xs">
+                                ({Math.round(verification.deepfake_confidence * 100)}%)
+                              </span>
+                            )}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => resetDeepfakeVerdict(verification.id)}
+                            title="Reset deepfake verdict"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => runDeepfakeAnalysis(verification.id, verification.photo_url)}
+                          disabled={!verification.photo_url || analyzingVerificationId === verification.id}
+                        >
+                          <Bot className="h-4 w-4 mr-1" />
+                          {analyzingVerificationId === verification.id ? 'Analyzing...' : 'Analyze'}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {verification.analysis_report ? (
+                        <>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <Sparkles className="h-4 w-4 mr-1" />
+                                View Report
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>Image Analysis Report</DialogTitle>
+                                <DialogDescription>
+                                  Analysis performed on {verification.analyzed_at ? new Date(verification.analyzed_at).toLocaleString() : 'Unknown date'}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="mt-4">
+                                <div className="prose prose-sm max-w-none">
+                                  <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
+                                    {verification.analysis_report}
+                                  </pre>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => resetAnalysis(verification.id)}
+                            title="Reset analysis"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => runGroqAnalysis(verification.id, verification.photo_url)}
+                          disabled={!verification.photo_url || analyzingVerificationId === verification.id}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          {analyzingVerificationId === verification.id ? 'Generating...' : 'Generate'}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {verification.photo_url ? (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <Image className="h-4 w-4 mr-1" />
+                            View Image
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Submission Image</DialogTitle>
+                            <DialogDescription>
+                              Quest submission photo for verification
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="mt-4 flex justify-center">
+                            <img
+                              src={verification.photo_url}
+                              alt="Submission"
+                              className="max-w-full max-h-[70vh] object-contain rounded-lg border"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/placeholder-image.png';
+                              }}
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No image</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm">
                     {new Date(verification.verified_at).toLocaleDateString()}
                   </TableCell>

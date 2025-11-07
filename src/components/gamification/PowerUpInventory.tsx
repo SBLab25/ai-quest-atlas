@@ -5,6 +5,12 @@ import { Zap, Clock } from 'lucide-react';
 import { useGamification } from '@/hooks/useGamification';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
+import {
+  getRarityColor,
+  getPowerUpIconEmoji,
+  getTimeRemaining,
+  getDurationText,
+} from '@/utils/powerupUtils';
 
 export const PowerUpInventory = () => {
   const { userPowerUps, activatePowerUp, getActivePowerUps } = useGamification();
@@ -25,33 +31,6 @@ export const PowerUpInventory = () => {
         variant: "destructive",
       });
     }
-  };
-
-  const getRarityColor = (rarity: string) => {
-    const colors = {
-      common: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
-      rare: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-      epic: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-      legendary: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-    };
-    return colors[rarity as keyof typeof colors] || colors.common;
-  };
-
-  const getEffectIcon = (effectType: string) => {
-    const icons: Record<string, string> = {
-      double_xp: '⚡',
-      instant_verify: '✓',
-      bonus_badge: '🏆',
-      point_multiplier: '💎',
-    };
-    return icons[effectType] || '⚡';
-  };
-
-  const getTimeRemaining = (expiresAt: string) => {
-    const remaining = new Date(expiresAt).getTime() - Date.now();
-    const hours = Math.floor(remaining / (1000 * 60 * 60));
-    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
   };
 
   if (userPowerUps.length === 0) {
@@ -82,7 +61,7 @@ export const PowerUpInventory = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="text-2xl">
-                        {getEffectIcon(up.powerups.effect_type)}
+                        {getPowerUpIconEmoji(up.powerups.effect_type)}
                       </div>
                       <div>
                         <h4 className="font-semibold">{up.powerups.name}</h4>
@@ -94,7 +73,7 @@ export const PowerUpInventory = () => {
                     {up.expires_at && (
                       <Badge variant="secondary">
                         <Clock className="h-3 w-3 mr-1" />
-                        {getTimeRemaining(up.expires_at)}
+                        {getTimeRemaining(up.expires_at, false)}
                       </Badge>
                     )}
                   </div>
@@ -120,7 +99,7 @@ export const PowerUpInventory = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="text-2xl">
-                      {getEffectIcon(up.powerups.effect_type)}
+                      {getPowerUpIconEmoji(up.powerups.effect_type)}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -137,7 +116,7 @@ export const PowerUpInventory = () => {
                       </p>
                       {up.powerups.duration_hours > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Duration: {up.powerups.duration_hours}h
+                          Duration: {getDurationText(up.powerups.duration_hours)}
                         </p>
                       )}
                     </div>

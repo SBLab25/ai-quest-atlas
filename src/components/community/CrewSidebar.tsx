@@ -26,9 +26,11 @@ export default function CrewSidebar({ onSearchChange }: CrewSidebarProps) {
   const [isOpen, setIsOpen] = useState(() => localStorage.getItem("crewSidebar") === "open");
   const [query, setQuery] = useState("");
   const [crewOpen, setCrewOpen] = useState(true);
+  const [teamOpen, setTeamOpen] = useState(true);
   const [myCrews, setMyCrews] = useState<Crew[]>([]);
   const [availableCrews, setAvailableCrews] = useState<Crew[]>([]);
   const [recentCrews, setRecentCrews] = useState<Crew[]>([]);
+  const [myTeams, setMyTeams] = useState<Crew[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
@@ -41,6 +43,7 @@ export default function CrewSidebar({ onSearchChange }: CrewSidebarProps) {
   useEffect(() => {
     if (!user) return;
     loadCrews();
+    loadTeams();
   }, [user]);
 
   const loadCrews = async () => {
@@ -138,6 +141,52 @@ export default function CrewSidebar({ onSearchChange }: CrewSidebarProps) {
     } catch (err) {
       console.error('Error leaving crew', err);
       toast({ title: 'Error', description: 'Could not leave crew', variant: 'destructive' });
+    }
+  };
+
+  const loadTeams = async () => {
+    if (!user) return;
+    try {
+      const { data: memberCounts } = await (supabase as any)
+        .from('team_members')
+        .select('team_id');
+
+      const teamMemberCounts = (memberCounts || []).reduce((acc: any, member: any) => {
+        acc[member.team_id] = (acc[member.team_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      const { data: memberships } = await (supabase as any)
+        .from('team_members')
+        .select(`team_id, role, teams(*)`)
+        .eq('user_id', user.id);
+
+      const userTeams = (memberships || []).map((m: any) => ({
+        ...m.teams,
+        member_count: teamMemberCounts[m.team_id] || 0,
+        user_role: m.role
+      }));
+
+      setMyTeams(userTeams);
+    } catch (err) {
+      console.error('Error loading teams', err);
+    }
+  };
+
+  const handleLeaveTeam = async (teamId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await (supabase as any)
+        .from('team_members')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      toast({ title: 'Left team' });
+      await loadTeams();
+    } catch (err) {
+      console.error('Error leaving team', err);
+      toast({ title: 'Error', description: 'Could not leave team', variant: 'destructive' });
     }
   };
 
@@ -269,6 +318,71 @@ export default function CrewSidebar({ onSearchChange }: CrewSidebarProps) {
                     {(recentCrews || []).slice(0, 8).map((c) => (
                       <div key={c.id} className="px-2 py-1 rounded text-sm hover:bg-muted truncate">{c.name}</div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Team Section */}
+          <Card className="p-3 mt-3 overflow-auto">
+            <button
+              type="button"
+              onClick={() => setTeamOpen((v) => !v)}
+              className="w-full flex items-center justify-between"
+              aria-expanded={teamOpen}
+            >
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span className="font-medium">Teams</span>
+              </div>
+              <span className="text-xs text-muted-foreground">{teamOpen ? "Hide" : "Show"}</span>
+            </button>
+
+            {teamOpen && (
+              <div className="mt-3 space-y-3">
+                {/* My teams */}
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">My teams</div>
+                  <div className="space-y-1 max-h-64 overflow-auto pr-1">
+                    {loading ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : myTeams.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No teams yet</div>
+                    ) : (
+                      myTeams.map((t: any) => (
+                        <div key={t.id} className="p-2 rounded bg-muted/50 hover:bg-muted space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <div className="font-medium text-sm truncate">{t.name}</div>
+                                {t.user_role === 'leader' && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-700 dark:text-yellow-400">
+                                    Leader
+                                  </span>
+                                )}
+                              </div>
+                              {t.description && (
+                                <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                                  {t.description}
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {t.member_count || 0}/{t.max_members} members
+                              </div>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => handleLeaveTeam(t.id)}
+                              className="shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

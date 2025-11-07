@@ -124,15 +124,74 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     setLoading(true);
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 60000 // 1 minute
-        });
-      });
+      // Try multiple times to get better accuracy
+      let bestPosition: GeolocationPosition | null = null;
+      let bestAccuracy = Infinity;
+      const ACCURACY_THRESHOLD = 3000; // Reject locations with accuracy > 3km (likely IP-based)
+      
+      // Try up to 3 times to get GPS-accurate location
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 20000, // Longer timeout for GPS to respond
+              maximumAge: 0 // Force fresh location, no cache
+            });
+          });
 
-      const { latitude, longitude, accuracy } = position.coords;
+          const accuracy = position.coords.accuracy || Infinity;
+          console.log(`Location attempt ${attempt}: Accuracy ${accuracy}m`);
+          
+          // Keep the most accurate position
+          if (accuracy < bestAccuracy) {
+            bestPosition = position;
+            bestAccuracy = accuracy;
+          }
+          
+          // If we get very good accuracy (under 100m), use it immediately
+          if (accuracy < 100) {
+            console.log('High accuracy achieved, using this location');
+            break;
+          }
+          
+          // Wait briefly between attempts
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (attemptError) {
+          console.log(`Attempt ${attempt} failed:`, attemptError);
+          if (attempt === 3) throw attemptError; // Only throw on final attempt
+        }
+      }
+
+      if (!bestPosition) {
+        throw new Error('All location attempts failed');
+      }
+
+      const { latitude, longitude, accuracy } = bestPosition.coords;
+      
+      // Warn if accuracy is poor (likely IP-based)
+      if (accuracy > ACCURACY_THRESHOLD) {
+        toast({
+          title: "Low Accuracy Warning",
+          description: `Location accuracy is ±${Math.round(accuracy)}m. This suggests IP-based location (can be off by 200-400km). Please verify the location on the map and adjust if needed.`,
+          variant: "destructive",
+          duration: 8000
+        });
+      } else if (accuracy > 100) {
+        toast({
+          title: "Location Found",
+          description: `Accuracy: ±${Math.round(accuracy)}m. Please verify the location is correct on the map.`,
+          duration: 5000
+        });
+      } else {
+        toast({
+          title: "Location Found",
+          description: `Accuracy: ±${Math.round(accuracy)}m`
+        });
+      }
+      
       const address = await reverseGeocode(latitude, longitude);
       
       const location: LocationData = {
@@ -144,27 +203,28 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       
       setSelectedLocation(location);
       setMapCenter([latitude, longitude]);
-
-      toast({
-        title: "Location found",
-        description: `Accuracy: ${Math.round(accuracy || 0)}m`
-      });
     } catch (error: any) {
       console.error('Geolocation error:', error);
       
       let message = "Unable to get your location";
+      let description = "Please search for your location or click on the map to select it.";
+      
       if (error.code === 1) {
         message = "Location access denied";
+        description = "Please enable location permissions in your browser settings, or search/click on the map to select your location.";
       } else if (error.code === 2) {
         message = "Location unavailable";
+        description = "GPS is not available. This often happens on desktop computers or when using VPN. Please search for your location or click on the map.";
       } else if (error.code === 3) {
         message = "Location request timed out";
+        description = "GPS took too long to respond. Please search for your location or click on the map to select it.";
       }
 
       toast({
-        title: "Location Error",
-        description: message,
-        variant: "destructive"
+        title: message,
+        description: description,
+        variant: "destructive",
+        duration: 8000
       });
     } finally {
       setLoading(false);

@@ -27,12 +27,12 @@ interface ProfileData {
 }
 
 type SettingsSection = 'profile' | 'account' | 'appearance' | 'privacy' | 'notifications' | 'security';
-interface NotificationSettings {
-  events: boolean;
-  quests: boolean;
-  posts: boolean;
-  likes: boolean;
-  comments: boolean;
+interface NotificationPreferences {
+  email_notifications: boolean;
+  push_notifications: boolean;
+  quest_updates: boolean;
+  social_interactions: boolean;
+  team_activities: boolean;
 }
 
 const settingsNavItems = [
@@ -63,14 +63,15 @@ export const AccountSettingsModal = ({ open, onOpenChange }: AccountSettingsModa
   const [nameVisible, setNameVisible] = useState(true);
   const [bio, setBio] = useState('');
   
-  const [notifications, setNotifications] = useState<NotificationSettings>({
-    events: true,
-    quests: true,
-    posts: true,
-    likes: true,
-    comments: true,
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    email_notifications: true,
+    push_notifications: true,
+    quest_updates: true,
+    social_interactions: true,
+    team_activities: true,
   });
   
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -84,6 +85,9 @@ export const AccountSettingsModal = ({ open, onOpenChange }: AccountSettingsModa
       if (savedTheme) {
         setCurrentTheme(savedTheme);
       }
+      // Load sound preference
+      const soundPref = localStorage.getItem('notification_sound_enabled');
+      setSoundEnabled(soundPref !== 'false');
     }
   }, [user?.id, open]);
 
@@ -111,10 +115,22 @@ export const AccountSettingsModal = ({ open, onOpenChange }: AccountSettingsModa
   };
 
   const fetchNotificationSettings = async () => {
-    // For now, use local storage. This could be moved to database later
-    const saved = localStorage.getItem(`notifications_${user?.id}`);
-    if (saved) {
-      setNotifications(JSON.parse(saved));
+    if (!user?.id) return;
+    
+    const { data, error } = await supabase
+      .from('notification_preferences' as any)
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (data && !error) {
+      setNotificationPrefs({
+        email_notifications: (data as any).email_notifications ?? true,
+        push_notifications: (data as any).push_notifications ?? true,
+        quest_updates: (data as any).quest_updates ?? true,
+        social_interactions: (data as any).social_interactions ?? true,
+        team_activities: (data as any).team_activities ?? true,
+      });
     }
   };
 
@@ -198,12 +214,34 @@ export const AccountSettingsModal = ({ open, onOpenChange }: AccountSettingsModa
     }
   };
 
-  const updateNotifications = () => {
-    localStorage.setItem(`notifications_${user?.id}`, JSON.stringify(notifications));
-    toast({
-      title: "Notification settings updated",
-      description: "Your notification preferences have been saved.",
-    });
+  const updateNotifications = async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('notification_preferences' as any)
+        .upsert({
+          user_id: user.id,
+          ...notificationPrefs,
+          updated_at: new Date().toISOString(),
+        } as any);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Notification settings updated",
+        description: "Your notification preferences have been saved.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update notification settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteAccount = async () => {
@@ -223,6 +261,11 @@ export const AccountSettingsModal = ({ open, onOpenChange }: AccountSettingsModa
       });
       
       onOpenChange(false);
+      
+      // Navigate to auth page after a brief delay
+      setTimeout(() => {
+        window.location.href = "/auth";
+      }, 300);
     } catch (error) {
       toast({
         title: "Error",
@@ -454,34 +497,136 @@ export const AccountSettingsModal = ({ open, onOpenChange }: AccountSettingsModa
             <div>
               <h3 className="text-lg font-semibold mb-2">Notification preferences</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Choose what notifications you want to receive.
+                Choose what notifications you want to receive and how.
               </p>
             </div>
             
-            <div className="space-y-4">
-              {[
-                { key: 'events', label: 'Event notifications', description: 'Notifications about community events and activities' },
-                { key: 'quests', label: 'Quest notifications', description: 'Updates about new quests and quest completions' },
-                { key: 'posts', label: 'Post notifications', description: 'Notifications about new community posts' },
-                { key: 'likes', label: 'Like notifications', description: 'When someone likes your posts or submissions' },
-                { key: 'comments', label: 'Comment notifications', description: 'When someone comments on your posts or submissions' },
-              ].map((item, index) => (
-                <div key={item.key} className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-6">
+              <div className="p-4 border rounded-lg space-y-4">
+                <h4 className="font-medium">Notification channels</h4>
+                
+                <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="font-medium">{item.label}</Label>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                    <Label className="flex items-center gap-2 font-medium">
+                      <Mail className="h-4 w-4" />
+                      Email notifications
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive notifications via email
+                    </p>
                   </div>
                   <Switch
-                    checked={notifications[item.key as keyof NotificationSettings]}
-                    onCheckedChange={(checked) => 
-                      setNotifications({ ...notifications, [item.key]: checked })
+                    checked={notificationPrefs.email_notifications}
+                    onCheckedChange={(checked) =>
+                      setNotificationPrefs({ ...notificationPrefs, email_notifications: checked })
                     }
                   />
                 </div>
-              ))}
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2 font-medium">
+                      <Bell className="h-4 w-4" />
+                      Push notifications
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive browser push notifications
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPrefs.push_notifications}
+                    onCheckedChange={async (checked) => {
+                      if (checked) {
+                        const { requestNotificationPermission } = await import('@/utils/notificationHelper');
+                        const granted = await requestNotificationPermission();
+                        if (!granted) {
+                          toast({
+                            title: 'Permission denied',
+                            description: 'Please enable notifications in your browser settings.',
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+                        localStorage.setItem('push_notifications_enabled', 'true');
+                      } else {
+                        localStorage.setItem('push_notifications_enabled', 'false');
+                      }
+                      setNotificationPrefs({ ...notificationPrefs, push_notifications: checked });
+                    }}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2 font-medium">
+                      <Bell className="h-4 w-4" />
+                      Notification sound
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Play sound when notifications arrive
+                    </p>
+                  </div>
+                  <Switch
+                    checked={soundEnabled}
+                    onCheckedChange={(checked) => {
+                      setSoundEnabled(checked);
+                      localStorage.setItem('notification_sound_enabled', checked.toString());
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-4">
+                <h4 className="font-medium">Notification categories</h4>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="font-medium">Quest updates</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Quest approvals, rejections, badges, and challenges
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPrefs.quest_updates}
+                    onCheckedChange={(checked) =>
+                      setNotificationPrefs({ ...notificationPrefs, quest_updates: checked })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="font-medium">Social interactions</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Comments, likes, and other social activity
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPrefs.social_interactions}
+                    onCheckedChange={(checked) =>
+                      setNotificationPrefs({ ...notificationPrefs, social_interactions: checked })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="font-medium">Team activities</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Team invites and team challenge updates
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPrefs.team_activities}
+                    onCheckedChange={(checked) =>
+                      setNotificationPrefs({ ...notificationPrefs, team_activities: checked })
+                    }
+                  />
+                </div>
+              </div>
               
-              <Button onClick={updateNotifications} className="w-full md:w-auto">
-                Save notification settings
+              <Button onClick={updateNotifications} disabled={loading} className="w-full md:w-auto">
+                Save notification preferences
               </Button>
             </div>
           </div>

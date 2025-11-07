@@ -64,6 +64,7 @@ export interface PowerUp {
   duration_hours: number;
   effect_type: string;
   multiplier: number;
+  cost?: number; // Optional cost field (for shop purchases)
   icon_url?: string;
   rarity: string;
 }
@@ -124,7 +125,34 @@ export const useGamification = () => {
         .eq('is_active', true)
         .order('end_date', { ascending: true });
 
-      // Fetch user's challenges
+      // Filter out expired challenges (end_date is in the past)
+      const now = new Date().toISOString();
+      const activeNonExpiredChallenges = (challengesData || []).filter(
+        (challenge: Challenge) => {
+          // Only include challenges that haven't expired
+          return new Date(challenge.end_date) > new Date(now);
+        }
+      );
+
+      // Deduplicate challenges: if multiple challenges have the same title and type,
+      // keep only the one with the latest end_date (most recent)
+      const uniqueChallenges = activeNonExpiredChallenges.reduce((acc: Challenge[], current: Challenge) => {
+        const existing = acc.find(
+          (c) => c.title === current.title && c.type === current.type
+        );
+        if (!existing) {
+          acc.push(current);
+        } else {
+          // Replace if current has a later end_date (more recent)
+          const existingIndex = acc.indexOf(existing);
+          if (new Date(current.end_date) > new Date(existing.end_date)) {
+            acc[existingIndex] = current;
+          }
+        }
+        return acc;
+      }, []);
+
+      // Fetch user's challenges (keep all records for scoring, even if challenge expired)
       const { data: userChallengesData } = await supabase
         .from('user_challenges' as any)
         .select(`
@@ -145,6 +173,15 @@ export const useGamification = () => {
         .from('powerups' as any)
         .select('*');
 
+      // Deduplicate power-ups by effect_type (keep the first one found)
+      const uniquePowerUps = (powerUpsData || []).reduce((acc: PowerUp[], current: PowerUp) => {
+        const existing = acc.find(p => p.effect_type === current.effect_type);
+        if (!existing) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+
       // Fetch user's power-ups
       const { data: userPowerUpsData } = await supabase
         .from('user_powerups' as any)
@@ -153,6 +190,22 @@ export const useGamification = () => {
           powerups(*)
         `)
         .eq('user_id', user.id);
+
+      // Deduplicate user power-ups by powerup_id (group similar ones)
+      // Keep only one instance per powerup_id, preferring active ones
+      const uniqueUserPowerUps = (userPowerUpsData || []).reduce((acc: any[], current: any) => {
+        const existing = acc.find(up => up.powerup_id === current.powerup_id);
+        if (!existing) {
+          acc.push(current);
+        } else {
+          // If current is active and existing is not, replace it
+          if (current.is_active && !existing.is_active) {
+            const index = acc.indexOf(existing);
+            acc[index] = current;
+          }
+        }
+        return acc;
+      }, []);
 
       // Fetch user's XP and level
       const { data: profileData } = await supabase
@@ -163,11 +216,13 @@ export const useGamification = () => {
 
       setAchievements((achievementsData as any) || []);
       setUserAchievements((userAchievementsData as any) || []);
-      setChallenges((challengesData as any) || []);
+      setChallenges(uniqueChallenges);
+      // Note: userChallenges are preserved even after challenges expire
+      // This allows scoring to work correctly with historical data
       setUserChallenges((userChallengesData as any) || []);
       setEvents((eventsData as any) || []);
-      setPowerUps((powerUpsData as any) || []);
-      setUserPowerUps((userPowerUpsData as any) || []);
+      setPowerUps(uniquePowerUps);
+      setUserPowerUps(uniqueUserPowerUps);
       setXp((profileData as any)?.xp || 0);
       setLevel((profileData as any)?.level || 1);
     } catch (error) {
@@ -251,12 +306,16 @@ export const useGamification = () => {
 
       // Award rewards if completed
       if (isCompleted && !userChallenge?.completed_at) {
+        // Award XP to profile
         await (supabase.rpc as any)('add_xp_to_user', {
           p_user_id: user.id,
           p_xp: challenge.reward_xp,
           p_source: 'challenge',
           p_description: `Completed challenge: ${challenge.title}`
         });
+        
+        // Award shopping points (currency) - will be added when user claims reward
+        // This is handled in ChallengeCard when user clicks "Claim Reward"
       }
 
       await fetchGamificationData();

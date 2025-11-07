@@ -4,6 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { ActivePowerUpBar } from "@/components/gamification/ActivePowerUpBar";
+import { PageLoader } from "@/components/ui/PageLoader";
+import { LottieLoading } from "@/components/ui/LottieLoading";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -29,13 +32,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <LottieLoading size="lg" message="Loading..." />
       </div>
     );
   }
   
-  return user ? <>{children}</> : <Navigate to="/auth" />;
+  // If no user, redirect to auth with replace to prevent back navigation
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
@@ -43,13 +51,18 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <LottieLoading size="lg" message="Loading..." />
       </div>
     );
   }
   
-  return user ? <Navigate to="/home" /> : <>{children}</>;
+  // If user is logged in, redirect to home with replace
+  if (user) {
+    return <Navigate to="/home" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 const App = () => (
@@ -58,6 +71,8 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <AuthProvider>
+        <PageLoader delay={200} minDisplayTime={600} />
+        <ActivePowerUpBar />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
@@ -66,6 +81,7 @@ const App = () => (
           <Route path="/quest/:id" element={<ProtectedRoute><QuestDetail /></ProtectedRoute>} />
           <Route path="/submit/:id" element={<ProtectedRoute><SubmitQuest /></ProtectedRoute>} />
           <Route path="/badges" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
+          <Route path="/treasure" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/profile/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />

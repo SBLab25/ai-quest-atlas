@@ -31,20 +31,81 @@ export const useLocationPermission = () => {
     try {
       setLoading(true);
       
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000 // 5 minutes
+      // Try multiple times to get better accuracy (reject IP-based fallback)
+      let bestPosition: GeolocationPosition | null = null;
+      let bestAccuracy = Infinity;
+      const ACCURACY_THRESHOLD = 3000; // Reject locations with accuracy > 3km (likely IP-based)
+      
+      // Try up to 3 times to get GPS-accurate location
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 20000, // Longer timeout for GPS to respond
+              maximumAge: 0 // Force fresh location, no cache
+            });
+          });
+
+          const accuracy = position.coords.accuracy || Infinity;
+          console.log(`Location attempt ${attempt}: Accuracy ${accuracy}m`);
+          
+          // Keep the most accurate position
+          if (accuracy < bestAccuracy) {
+            bestPosition = position;
+            bestAccuracy = accuracy;
+          }
+          
+          // If we get very good accuracy (under 100m), use it immediately
+          if (accuracy < 100) {
+            console.log('High accuracy achieved, using this location');
+            break;
+          }
+          
+          // Wait briefly between attempts
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (attemptError) {
+          console.log(`Attempt ${attempt} failed:`, attemptError);
+          if (attempt === 3) throw attemptError; // Only throw on final attempt
+        }
+      }
+
+      if (!bestPosition) {
+        throw new Error('All location attempts failed');
+      }
+
+      // Validate accuracy - reject IP-based locations
+      if (bestAccuracy > ACCURACY_THRESHOLD) {
+        console.warn(`Location accuracy too poor (${Math.round(bestAccuracy)}m), likely IP-based. Opening location picker.`);
+        toast({
+          title: "GPS Location Unavailable",
+          description: `Detected location accuracy is ±${Math.round(bestAccuracy)}m, which suggests IP-based location (off by 200-400km). Please select your location manually on the map.`,
+          variant: "destructive",
+          duration: 8000
         });
-      });
+        
+        // Set location data but don't save yet - let user confirm via picker
+        const locationData: LocationData = {
+          latitude: bestPosition.coords.latitude,
+          longitude: bestPosition.coords.longitude,
+          accuracy: bestAccuracy,
+          address: `${bestPosition.coords.latitude.toFixed(4)}, ${bestPosition.coords.longitude.toFixed(4)}`
+        };
+        
+        setLocation(locationData);
+        setShowLocationPicker(true); // Open picker for manual confirmation
+        setHasPermission(true);
+        return false; // Return false to indicate manual selection needed
+      }
 
       // Get readable address using reverse geocoding
-      let address = `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+      let address = `${bestPosition.coords.latitude.toFixed(4)}, ${bestPosition.coords.longitude.toFixed(4)}`;
       
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&addressdetails=1`,
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${bestPosition.coords.latitude}&lon=${bestPosition.coords.longitude}&addressdetails=1`,
           {
             headers: {
               'User-Agent': 'LocationPicker/1.0'
@@ -62,14 +123,23 @@ export const useLocationPermission = () => {
       }
 
       const locationData: LocationData = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
+        latitude: bestPosition.coords.latitude,
+        longitude: bestPosition.coords.longitude,
+        accuracy: bestAccuracy,
         address
       };
 
       setLocation(locationData);
       setHasPermission(true);
+
+      // Show confirmation before saving if accuracy is still moderate (100m-1000m)
+      if (bestAccuracy > 100 && bestAccuracy <= 1000) {
+        toast({
+          title: "Location Detected",
+          description: `Location: ${address}\nAccuracy: ±${Math.round(bestAccuracy)}m\nIf this looks wrong, use the location picker to correct it.`,
+          duration: 6000
+        });
+      }
 
       // Save location to user profile if user is authenticated
       if (user) {
@@ -78,7 +148,7 @@ export const useLocationPermission = () => {
 
       toast({
         title: "Location updated",
-        description: "Your location has been saved for personalized quests"
+        description: `Your location has been saved (accuracy: ±${Math.round(bestAccuracy)}m)`
       });
 
       return true;
@@ -87,19 +157,28 @@ export const useLocationPermission = () => {
       setHasPermission(false);
       
       let message = "Unable to get your location";
+      let description = "Please use the location picker to select your location manually.";
+      
       if (error.code === 1) {
-        message = "Location access denied. Please enable location permissions in your browser settings.";
+        message = "Location access denied";
+        description = "Please enable location permissions in your browser settings, or use the location picker to select manually.";
       } else if (error.code === 2) {
-        message = "Location unavailable. Please check your GPS settings.";
+        message = "Location unavailable";
+        description = "GPS is not available. This often happens on desktop computers or when using VPN. Please use the location picker to select your location manually.";
       } else if (error.code === 3) {
-        message = "Location request timed out. Please try again.";
+        message = "Location request timed out";
+        description = "GPS took too long to respond. Please use the location picker to select your location manually.";
       }
 
       toast({
-        title: "Location Error",
-        description: message,
-        variant: "destructive"
+        title: message,
+        description: description,
+        variant: "destructive",
+        duration: 8000
       });
+
+      // Open location picker as fallback
+      setShowLocationPicker(true);
 
       return false;
     } finally {
@@ -152,6 +231,7 @@ export const useLocationPermission = () => {
   const setManualLocation = (locationData: LocationData) => {
     setLocation(locationData);
     setHasPermission(true);
+    setShowLocationPicker(false); // Close picker after selection
     
     if (user) {
       updateUserLocation(locationData);

@@ -11,9 +11,7 @@ if (savedTheme && savedTheme !== 'default') {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <App />
-    </ThemeProvider>
-  </React.StrictMode>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <App />
+  </ThemeProvider>
 );

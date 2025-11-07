@@ -51,13 +51,24 @@ export const QuestMap: React.FC<QuestMapProps> = ({ quests }) => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
           setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
+            lat: latitude,
+            lng: longitude,
           });
+          
+          // Log warning if accuracy is poor (for debugging)
+          if (accuracy && accuracy > 3000) {
+            console.warn(`Low location accuracy: ±${Math.round(accuracy)}m - likely IP-based location`);
+          }
         },
         (error) => {
           console.error('Geolocation error:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0
         }
       );
     }

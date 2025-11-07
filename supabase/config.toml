@@ -24,5 +24,14 @@ verify_jwt = true
 [functions.reset-daily-challenges]
 verify_jwt = false
 
+[functions.reset-weekly-challenges]
+verify_jwt = false
+
 [functions.expire-powerups]
 verify_jwt = false
+
+[functions.award-powerup]
+verify_jwt = false
+
+[functions.send-notification]
+verify_jwt = true

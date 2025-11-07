@@ -73,13 +73,20 @@ serve(async (req) => {
 
       const previousQuestTitles = recentQuests?.map(q => q.title) || [];
 
-      const questData = await generateQuestWithGemini({
-        userLocation: profile.location || (profile.latitude && profile.longitude ? `${profile.latitude}, ${profile.longitude}` : 'anywhere'),
-        latitude: profile.latitude,
-        longitude: profile.longitude,
-        interests: profile.interests || [],
-        previousQuests: previousQuestTitles
-      });
+      let questData;
+      try {
+        questData = await generateQuestWithGemini({
+          userLocation: profile.location || (profile.latitude && profile.longitude ? `${profile.latitude}, ${profile.longitude}` : 'anywhere'),
+          latitude: profile.latitude || null,
+          longitude: profile.longitude || null,
+          interests: profile.interests || [],
+          previousQuests: previousQuestTitles
+        });
+      } catch (geminiError) {
+        console.error('Gemini generation error:', geminiError);
+        const errorMessage = geminiError instanceof Error ? geminiError.message : 'Unknown error during quest generation';
+        throw new Error(`AI quest generation failed: ${errorMessage}`);
+      }
 
       if (questData) {
         const { error: insertError } = await supabase
@@ -98,18 +105,23 @@ serve(async (req) => {
           });
 
         if (insertError) {
+          console.error('Insert error:', insertError);
           throw new Error(`Failed to insert quest: ${insertError.message}`);
         }
 
         return new Response(
           JSON.stringify({ 
+            success: true,
             message: 'Quest generated successfully',
             quest: questData
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
         );
       } else {
-        throw new Error('Failed to generate quest');
+        throw new Error('Failed to generate quest: No quest data returned from AI');
       }
     }
 
@@ -198,10 +210,16 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-daily-ai-quests:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const statusCode = errorMessage.includes('GEMINI_API_KEY') ? 503 : 
+                      errorMessage.includes('profile') ? 404 : 500;
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ 
+        success: false,
+        error: errorMessage,
+        message: errorMessage
+      }),
       { 
-        status: 500,
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

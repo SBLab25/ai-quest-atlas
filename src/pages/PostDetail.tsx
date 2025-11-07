@@ -192,6 +192,9 @@ const PostDetail = () => {
       };
 
       setPost(processedPost);
+      
+      // Fetch comments after post is loaded
+      console.log("Post loaded, fetching comments for:", postId);
       await fetchComments();
     } catch (err) {
       console.error("Error fetching post:", err);
@@ -203,22 +206,40 @@ const PostDetail = () => {
   };
 
   const fetchComments = async () => {
-    if (!postId || !post) return;
+    if (!postId) return;
 
+    // Determine post type - use post state if available, otherwise try both
+    const postType = post?.type || 'community';
+    
     try {
       let data, error;
-      if (post.type === 'community') {
+      
+      // Try community first, then quest if that fails
+      if (postType === 'community' || !post) {
         const result = await supabase
           .from("community_post_comments")
-          .select("id, user_id, post_id, content, created_at, parent_id")
+          .select("id, user_id, post_id, content, created_at")
           .eq("post_id", postId)
           .order("created_at", { ascending: true });
         data = result.data;
         error = result.error;
+        
+        // If no data and we don't know the type, try quest comments
+        if ((!data || data.length === 0) && !post) {
+          const questResult = await supabase
+            .from("post_comments")
+            .select("id, user_id, submission_id, content, created_at")
+            .eq("submission_id", postId)
+            .order("created_at", { ascending: true });
+          if (questResult.data && questResult.data.length > 0) {
+            data = questResult.data;
+            error = questResult.error;
+          }
+        }
       } else {
         const result = await supabase
           .from("post_comments")
-          .select("id, user_id, submission_id, content, created_at, parent_id")
+          .select("id, user_id, submission_id, content, created_at")
           .eq("submission_id", postId)
           .order("created_at", { ascending: true });
         data = result.data;
@@ -228,46 +249,66 @@ const PostDetail = () => {
       if (error) throw error;
 
       const userIds = (data || []).map((c: any) => c.user_id);
+      
+      // Fetch profiles, including current user if needed
+      const uniqueUserIds = [...new Set(userIds)];
+      if (user && !uniqueUserIds.includes(user.id)) {
+        uniqueUserIds.push(user.id);
+      }
+      
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, username, avatar_url")
-        .in("id", userIds);
+        .in("id", uniqueUserIds);
 
       const withProfiles: Comment[] = (data || []).map((c: any) => {
         const profile = profiles?.find((p) => p.id === c.user_id);
+        // If profile not found and it's the current user, use user metadata
+        if (!profile && c.user_id === user?.id) {
+          return {
+            ...c,
+            post_id: postId,
+            parent_id: null, // parent_id not in schema, set to null
+            user_profile: {
+              username: user.user_metadata?.username || user.email?.split('@')[0] || "You",
+              full_name: user.user_metadata?.username || user.email?.split('@')[0] || "You",
+              avatar_url: user.user_metadata?.avatar_url || null
+            },
+          };
+        }
         return {
           ...c,
           post_id: postId,
+          parent_id: null, // parent_id not in schema, set to null
           user_profile: profile ? {
             username: profile.username,
             full_name: profile.username,
             avatar_url: profile.avatar_url
-          } : null,
+          } : {
+            username: "Unknown",
+            full_name: "Unknown",
+            avatar_url: null
+          },
         };
       });
 
-      // Build hierarchical comment structure
-      const commentMap = new Map<string, Comment>();
-      const rootComments: Comment[] = [];
+      // Since parent_id is not in the schema, all comments are root comments
+      // Sort by created_at ascending (oldest first) for chronological display
+      withProfiles.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
 
-      withProfiles.forEach(comment => {
-        commentMap.set(comment.id, { ...comment, replies: [] });
+      console.log("Fetched comments:", {
+        totalComments: withProfiles.length,
+        comments: withProfiles
       });
-
-      withProfiles.forEach(comment => {
-        if (comment.parent_id) {
-          const parent = commentMap.get(comment.parent_id);
-          if (parent) {
-            parent.replies!.push(commentMap.get(comment.id)!);
-          }
-        } else {
-          rootComments.push(commentMap.get(comment.id)!);
-        }
-      });
-
-      setComments(rootComments);
+      
+      // Set all comments as root comments (no hierarchical structure)
+      setComments(withProfiles);
     } catch (err) {
       console.error("Error loading comments:", err);
+      // Set empty array on error to prevent showing stale data
+      setComments([]);
     }
   };
 
@@ -312,30 +353,52 @@ const PostDetail = () => {
   };
 
   const addComment = async (parentId?: string) => {
-    if (!user || !post) return;
+    if (!user || !post) {
+      toast({ title: "Error", description: "You must be logged in to comment", variant: "destructive" });
+      return;
+    }
     
     const text = parentId ? replyText.trim() : newComment.trim();
-    if (!text) return;
+    if (!text) {
+      toast({ title: "Invalid comment", description: "Comment cannot be empty", variant: "destructive" });
+      return;
+    }
 
     try {
+      let result;
+      // Note: parent_id might not exist in the schema, so we'll only include it if it's provided
+      // and the table supports it. For now, we'll omit it to avoid errors.
       if (post.type === 'community') {
-        await supabase
+        result = await supabase
           .from("community_post_comments")
           .insert({ 
             post_id: postId, 
             user_id: user.id, 
-            content: text,
-            parent_id: parentId || null
-          });
+            content: text
+            // parent_id is not in the schema, so we omit it
+          })
+          .select()
+          .single();
       } else {
-        await supabase
+        result = await supabase
           .from("post_comments")
           .insert({ 
             submission_id: postId, 
             user_id: user.id, 
-            content: text,
-            parent_id: parentId || null
-          });
+            content: text
+            // parent_id is not in the schema, so we omit it
+          })
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        console.error("Database error:", result.error);
+        throw new Error(result.error.message || "Database error occurred");
+      }
+
+      if (!result.data) {
+        throw new Error("Comment was not created");
       }
 
       if (parentId) {
@@ -345,13 +408,56 @@ const PostDetail = () => {
         setNewComment("");
       }
       
-      setPost(prev => prev ? { ...prev, comments_count: prev.comments_count + 1 } : null);
-      await fetchComments();
+      // Wait a bit for database to commit
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Refresh comment count first
+      await refreshCommentCount();
+      
+      // Then refresh comments (with retry to ensure new comment appears)
+      for (let i = 0; i < 3; i++) {
+        await fetchComments();
+        // Check if comment count matches
+        if (i < 2) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
       
       toast({ title: "Comment added", description: "Your comment has been posted" });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding comment:", err);
-      toast({ title: "Error", description: "Failed to add comment", variant: "destructive" });
+      const errorMessage = err?.message || err?.error?.message || "Failed to add comment. Please try again.";
+      toast({ 
+        title: "Error", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const refreshCommentCount = async () => {
+    if (!postId || !post) return;
+
+    try {
+      let commentsRes;
+      if (post.type === 'community') {
+        commentsRes = await supabase
+          .from("community_post_comments")
+          .select("id")
+          .eq("post_id", postId);
+      } else {
+        commentsRes = await supabase
+          .from("post_comments")
+          .select("id")
+          .eq("submission_id", postId);
+      }
+
+      if (commentsRes.error) throw commentsRes.error;
+      const commentsCount = (commentsRes.data || []).length;
+
+      setPost(prev => prev ? { ...prev, comments_count: commentsCount } : null);
+    } catch (err) {
+      console.error("Error refreshing comment count:", err);
     }
   };
 
@@ -612,16 +718,31 @@ const PostDetail = () => {
                 Comments ({post.comments_count})
               </h2>
               
-              {comments.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No comments yet. Be the first to share your thoughts!</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {comments.map(comment => renderComment(comment))}
-                </div>
-              )}
+              {(() => {
+                console.log("Rendering comments section:", {
+                  commentsLength: comments.length,
+                  comments: comments,
+                  postCommentsCount: post.comments_count
+                });
+                
+                if (comments.length === 0) {
+                  return (
+                    <div className="text-center text-muted-foreground py-8">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No comments yet. Be the first to share your thoughts!</p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-6">
+                    {comments.map(comment => {
+                      console.log("Rendering comment:", comment);
+                      return renderComment(comment);
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>

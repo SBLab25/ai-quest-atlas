@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, User, Trophy, Calendar, Target, Grid3X3, History } from 'lucide-react';
+import { ArrowLeft, User, Trophy, Calendar, Target, Grid3X3, History, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StreakDisplay } from '@/components/streak/StreakDisplay';
 import ThemeToggleButton from '@/components/ui/theme-toggle-button';
@@ -15,6 +15,9 @@ import { ProfileDropdown } from '@/components/navigation/ProfileDropdown';
 import { UserPostsGrid } from '@/components/profile/UserPostsGrid';
 import { QuestHistory } from '@/components/profile/QuestHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FollowButton } from '@/components/social/FollowButton';
+import { FollowersModal } from '@/components/social/FollowersModal';
+import { useFollow } from '@/hooks/useFollow';
 
 interface UserProfile {
   id: string;
@@ -40,6 +43,9 @@ const UserProfile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
+  const { followerCount, followingCount } = useFollow(userId || '');
 
   useEffect(() => {
     if (userId) {
@@ -209,11 +215,38 @@ const UserProfile = () => {
 
                   {/* Profile Info */}
                   <div className="flex-1 text-center md:text-left space-y-2">
-                    <h2 className="text-3xl font-bold">{profile.username || 'Anonymous User'}</h2>
+                    <div className="flex items-center justify-center md:justify-start gap-3">
+                      <h2 className="text-3xl font-bold">{profile.username || 'Anonymous User'}</h2>
+                      {currentUser && userId && currentUser.id !== userId && (
+                        <FollowButton userId={userId} size="default" />
+                      )}
+                    </div>
                     <p className="text-muted-foreground text-lg">@{profile.username || 'no-username'}</p>
                     <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       Joined {new Date(profile.created_at).toLocaleDateString()}
+                    </div>
+                    
+                    {/* Follow Stats */}
+                    <div className="flex items-center gap-4 justify-center md:justify-start text-sm">
+                      <button
+                        onClick={() => {
+                          setFollowersModalTab('followers');
+                          setShowFollowersModal(true);
+                        }}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <span className="font-semibold">{followerCount}</span> followers
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFollowersModalTab('following');
+                          setShowFollowersModal(true);
+                        }}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <span className="font-semibold">{followingCount}</span> following
+                      </button>
                     </div>
                   </div>
 
@@ -301,6 +334,16 @@ const UserProfile = () => {
           </div>
         </div>
       </div>
+
+      {/* Followers/Following Modal */}
+      {userId && (
+        <FollowersModal
+          userId={userId}
+          open={showFollowersModal}
+          onOpenChange={setShowFollowersModal}
+          defaultTab={followersModalTab}
+        />
+      )}
     </div>
   );
 };

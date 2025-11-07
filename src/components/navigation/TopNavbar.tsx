@@ -15,7 +15,7 @@ const navigationItems = [
   { title: "Quests", url: "/all-quests", icon: Map },
   { title: "Quest Map", url: "/quest-map", icon: MapPin },
   { title: "Crew", url: "/community", icon: Globe },
-  { title: "Treasure", url: "/badges", icon: Gem },
+  { title: "Treasure", url: "/treasure", icon: Gem },
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
 ];
 
@@ -31,14 +31,17 @@ export const TopNavbar = () => {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo and Brand */}
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/home')}
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          >
             <div className="flex items-center gap-2">
               <DiscoveryAtlasIcon className="w-8 h-8 text-primary" />
               <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 Discovery Atlas
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-1">

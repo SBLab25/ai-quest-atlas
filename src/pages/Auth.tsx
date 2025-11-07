@@ -7,18 +7,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Star } from 'lucide-react';
+import { MapPin, Star, ArrowLeft } from 'lucide-react';
 import ThemeToggleButton from '@/components/ui/theme-toggle-button';
-import DiscoveryAtlasIcon from '@/components/ui/discovery-atlas-icon';
+import { LottieLoading } from '@/components/ui/LottieLoading';
+import AnoAI from '@/components/ui/animated-shader-background';
+import daLogo from '@/components/ui/Discovery Atlas logo.png';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Signing you in...');
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLoadingMessage('Signing you in...');
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
@@ -46,6 +50,7 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLoadingMessage('Creating your account...');
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
@@ -75,21 +80,81 @@ const Auth = () => {
     setIsLoading(false);
   };
 
+  // Show loading overlay when authenticating
+  if (isLoading) {
+    return (
+      <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
+        {/* Animated Shader Background */}
+        <div className="absolute inset-0 z-0">
+          <AnoAI />
+        </div>
+        {/* Dark overlay for better contrast */}
+        <div className="absolute inset-0 bg-black/40 z-10" />
+        
+        {/* Back to Landing Page Button */}
+        <div className="absolute top-4 left-4 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/')}
+            className="backdrop-blur-md bg-background/80 hover:bg-background/90 border-border/50 shadow-lg"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+        
+        <div className="absolute top-4 right-4 z-50">
+          <ThemeToggleButton />
+        </div>
+        <div className="relative z-20">
+          <LottieLoading 
+            size="lg" 
+            message={loadingMessage}
+            className="min-h-screen"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 flex items-center justify-center p-4">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Animated Shader Background */}
+      <div className="absolute inset-0 z-0">
+        <AnoAI />
+      </div>
+      {/* Dark overlay for better contrast */}
+      <div className="absolute inset-0 bg-black/40 z-10" />
+      
+      {/* Back to Landing Page Button */}
+      <div className="absolute top-4 left-4 z-50">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/')}
+          className="backdrop-blur-md bg-background/80 hover:bg-background/90 border-border/50 shadow-lg"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+      </div>
+      
       {/* Theme Toggle */}
       <div className="absolute top-4 right-4 z-50">
         <ThemeToggleButton />
       </div>
       
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-6 relative z-20">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
-              <DiscoveryAtlasIcon className="w-6 h-6" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">Discovery Atlas</span>
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <img 
+              src={daLogo} 
+              alt="Discovery Atlas Logo" 
+              className="h-24 w-auto object-contain"
+            />
+            <span className="text-4xl font-bold text-foreground">Discovery Atlas</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Welcome Explorer!</h1>
           <p className="text-muted-foreground">Begin your journey of discovery and adventure</p>
@@ -110,15 +175,19 @@ const Auth = () => {
             <p className="text-xs text-muted-foreground">Earn Badges</p>
           </div>
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto">
-              <DiscoveryAtlasIcon className="w-8 h-8" />
+            <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto overflow-hidden">
+              <img 
+                src={daLogo} 
+                alt="Discovery Atlas" 
+                className="w-10 h-10 object-contain"
+              />
             </div>
             <p className="text-xs text-muted-foreground">Connect</p>
           </div>
         </div>
 
         {/* Auth Forms */}
-        <Card>
+        <Card className="backdrop-blur-md bg-card/95 border-border/50 shadow-2xl">
           <Tabs defaultValue="signin" className="w-full">
             <CardHeader>
               <TabsList className="grid w-full grid-cols-2">

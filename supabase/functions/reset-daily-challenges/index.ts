@@ -19,6 +19,33 @@ serve(async (req) => {
 
     console.log("Resetting daily challenges...");
 
+    // Helper function to get next midnight IST
+    const getNextMidnightIST = () => {
+      const now = new Date();
+      // IST is UTC+5:30
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+      const nowIST = new Date(now.getTime() + istOffset);
+      
+      // Get current date in IST
+      const istYear = nowIST.getUTCFullYear();
+      const istMonth = nowIST.getUTCMonth();
+      const istDate = nowIST.getUTCDate();
+      
+      // Create midnight IST for today
+      const midnightIST = new Date(Date.UTC(istYear, istMonth, istDate, 0, 0, 0, 0));
+      const midnightISTTimestamp = midnightIST.getTime() - istOffset;
+      
+      // If current time is past midnight IST today, use tomorrow's midnight
+      const nextMidnight = now.getTime() >= midnightISTTimestamp 
+        ? midnightISTTimestamp + 24 * 60 * 60 * 1000
+        : midnightISTTimestamp;
+      
+      return new Date(nextMidnight);
+    };
+
+    const startDate = getNextMidnightIST();
+    const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours later
+
     // Expire old daily challenges
     const { error: expireError } = await supabaseClient
       .from("challenges")
@@ -32,22 +59,22 @@ serve(async (req) => {
     const newChallenges = [
       {
         type: "daily",
-        title: "Complete 2 Quests Today",
-        description: "Finish any 2 quests before midnight",
-        start_date: new Date().toISOString(),
-        end_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        title: "Complete 1 Quest Today",
+        description: "Finish any 1 quest before midnight IST",
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
         reward_points: 50,
         reward_xp: 20,
         requirement_type: "quests_completed",
-        requirement_value: 2,
+        requirement_value: 1,
         is_active: true,
       },
       {
         type: "daily",
         title: "Earn an AI Verification",
         description: "Get at least one AI-verified submission",
-        start_date: new Date().toISOString(),
-        end_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
         reward_points: 30,
         reward_xp: 15,
         requirement_type: "verified_submissions",

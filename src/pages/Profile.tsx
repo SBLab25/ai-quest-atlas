@@ -18,6 +18,9 @@ import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
 import { UserPostsGrid } from '@/components/profile/UserPostsGrid';
 import { QuestHistory } from '@/components/profile/QuestHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FollowersModal } from '@/components/social/FollowersModal';
+import { useFollow } from '@/hooks/useFollow';
+import { LocationPicker } from '@/components/location/LocationPicker';
 
 interface Profile {
   id: string;
@@ -46,6 +49,10 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
+  const { followerCount, followingCount } = useFollow(user?.id || '');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -237,12 +244,29 @@ const Profile = () => {
       
       console.log(`Final coordinates: ${latitude}, ${longitude} (accuracy: ${accuracy}m)`);
       
-      // Warn if accuracy is still poor
-      if (accuracy > 1000) {
+      const ACCURACY_THRESHOLD = 3000; // Reject locations with accuracy > 3km (likely IP-based)
+      
+      // Validate accuracy - reject IP-based locations
+      if (accuracy > ACCURACY_THRESHOLD) {
+        console.warn(`Location accuracy too poor (${Math.round(accuracy)}m), likely IP-based. Opening location picker.`);
         toast({
-          title: "Low accuracy warning",
-          description: `Location accuracy is ±${Math.round(accuracy)}m. For better results, try moving to an open area with clear sky view.`,
-          variant: "destructive"
+          title: "GPS Location Unavailable",
+          description: `Detected location accuracy is ±${Math.round(accuracy)}m, which suggests IP-based location (can be off by 200-400km). Please select your location manually on the map.`,
+          variant: "destructive",
+          duration: 8000
+        });
+        
+        // Open location picker for manual selection
+        setShowLocationPicker(true);
+        return;
+      }
+      
+      // Warn if accuracy is moderate (100m-3000m)
+      if (accuracy > 100 && accuracy <= ACCURACY_THRESHOLD) {
+        toast({
+          title: "Location Detected",
+          description: `Location accuracy: ±${Math.round(accuracy)}m. If this location looks wrong, you can correct it using the location picker.`,
+          duration: 6000
         });
       }
       
@@ -283,6 +307,8 @@ const Profile = () => {
           title: "Location updated successfully",
           description: `Location: ${address}\nAccuracy: ±${Math.round(accuracy)}m`,
         });
+        // Refresh profile to show updated location
+        await fetchProfile();
       }
 
     } catch (error: any) {
@@ -299,17 +325,55 @@ const Profile = () => {
         description = "Your device couldn't determine your location. Please check your GPS settings and try from an open area.";
       } else if (error.code === 3) {
         message = "Location request timed out";
-        description = "The location request took too long. Please try again from an open area with clear sky view.";
+        description = "GPS took too long to respond. This often happens on desktop computers or when using VPN. Please use the location picker to select your location manually.";
       }
 
       toast({
         title: message,
         description: description,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 8000
       });
+      
+      // Open location picker as fallback
+      setShowLocationPicker(true);
     } finally {
       setDetectingLocation(false);
     }
+  };
+
+  const handleLocationSelect = (locationData: { latitude: number; longitude: number; address?: string; accuracy?: number }) => {
+    // Update form data
+    setFormData({
+      ...formData,
+      location: locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`
+    });
+
+    // Save to database
+    supabase
+      .from('profiles')
+      .update({
+        location: locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user?.id)
+      .then(() => {
+        fetchProfile();
+        toast({
+          title: "Location updated",
+          description: "Your location has been saved successfully."
+        });
+      })
+      .catch((error) => {
+        console.error('Database error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save location. Please try again.",
+          variant: "destructive"
+        });
+      });
   };
 
   // Improved reverse geocoding with multiple services
@@ -470,6 +534,28 @@ const Profile = () => {
                         {profile.location}
                       </div>
                     )}
+                    
+                    {/* Follow Stats */}
+                    <div className="flex items-center gap-4 justify-center md:justify-start text-sm pt-2">
+                      <button
+                        onClick={() => {
+                          setFollowersModalTab('followers');
+                          setShowFollowersModal(true);
+                        }}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <span className="font-semibold">{followerCount}</span> followers
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFollowersModalTab('following');
+                          setShowFollowersModal(true);
+                        }}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <span className="font-semibold">{followingCount}</span> following
+                      </button>
+                    </div>
                   </div>
 
                   {/* Stats */}
@@ -796,6 +882,28 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Followers/Following Modal */}
+      {user && (
+        <FollowersModal
+          userId={user.id}
+          open={showFollowersModal}
+          onOpenChange={setShowFollowersModal}
+          defaultTab={followersModalTab}
+        />
+      )}
+
+      {/* Location Picker */}
+      <LocationPicker
+        isOpen={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onLocationSelect={handleLocationSelect}
+        currentLocation={profile?.latitude && profile?.longitude ? {
+          latitude: profile.latitude,
+          longitude: profile.longitude,
+          address: profile.location
+        } : undefined}
+      />
     </div>
   );
 };

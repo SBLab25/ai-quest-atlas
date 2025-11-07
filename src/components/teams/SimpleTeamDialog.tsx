@@ -37,7 +37,7 @@ export function SimpleTeamDialog() {
   const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
   const [myTeams, setMyTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'find' | 'create' | 'manage'>('find');
+  const [activeTab, setActiveTab] = useState<'find' | 'create'>('find');
 
   useEffect(() => {
     if (user) {
@@ -50,15 +50,25 @@ export function SimpleTeamDialog() {
     
     setLoading(true);
     try {
-      // Fetch available teams (not at max capacity and user not already a member)
+      // Fetch all teams with member counts
       const { data: allTeams, error: teamsError } = await (supabase as any)
         .from('teams')
-        .select(`
-          *,
-          team_members(count)
-        `);
+        .select('*');
 
       if (teamsError) throw teamsError;
+
+      // Get member counts for all teams
+      const { data: memberCounts, error: countError } = await (supabase as any)
+        .from('team_members')
+        .select('team_id');
+      
+      if (countError) throw countError;
+
+      // Count members per team
+      const teamMemberCounts = (memberCounts || []).reduce((acc: any, member: any) => {
+        acc[member.team_id] = (acc[member.team_id] || 0) + 1;
+        return acc;
+      }, {});
 
       // Get user's teams
       const { data: userTeamMemberships, error: membershipError } = await (supabase as any)
@@ -76,7 +86,7 @@ export function SimpleTeamDialog() {
       
       // Process teams with member counts
       const teamsWithCounts = (allTeams || []).map((team: any) => {
-        const memberCount = Array.isArray(team.team_members) ? team.team_members.length : 0;
+        const memberCount = teamMemberCounts[team.id] || 0;
         return {
           ...team,
           member_count: memberCount,
@@ -151,7 +161,7 @@ export function SimpleTeamDialog() {
       
       setCreateTeamName('');
       setCreateTeamDescription('');
-      setActiveTab('manage');
+      setActiveTab('find');
       fetchTeams();
     } catch (error) {
       console.error('Error creating team:', error);
@@ -233,12 +243,11 @@ export function SimpleTeamDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button 
-          className="group relative overflow-hidden bg-gradient-to-r from-primary/90 via-secondary/90 to-accent/90 hover:from-primary hover:to-accent ring-1 ring-primary/30 dark:ring-0 hover:shadow-2xl hover:shadow-primary/25 transform hover:scale-110 transition-all duration-300 ease-out rounded-2xl px-6 py-4 text-primary-foreground dark:text-white font-semibold shadow-lg"
+          className="rounded-2xl px-6 py-4 font-semibold shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300"
           size="lg"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-quest-accent/20 via-transparent to-quest-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <div className="relative flex items-center gap-2">
-            <Users className="h-5 w-5 animate-pulse drop-shadow dark:drop-shadow-none" />
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
             <span className="hidden sm:inline">Find Adventure Team</span>
             <span className="sm:hidden">Team Up</span>
           </div>
@@ -257,8 +266,7 @@ export function SimpleTeamDialog() {
           <div className="flex gap-2 p-1 bg-muted rounded-lg">
             {[
               { key: 'find', label: 'Find Teams', icon: User },
-              { key: 'create', label: 'Create Team', icon: Plus },
-              { key: 'manage', label: 'My Teams', icon: MessageCircle }
+              { key: 'create', label: 'Create Team', icon: Plus }
             ].map(({ key, label, icon: Icon }) => (
               <Button
                 key={key}
@@ -367,62 +375,6 @@ export function SimpleTeamDialog() {
             </div>
           )}
 
-          {/* My Teams Tab */}
-          {activeTab === 'manage' && (
-            <div className="space-y-4">
-              <div className="text-center space-y-2">
-                <h3 className="font-semibold">My Adventure Teams</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage your teams and track progress!
-                </p>
-              </div>
-              
-              {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading your teams...</div>
-              ) : myTeams.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  You haven't joined any teams yet. Find or create one!
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {myTeams.map((team) => (
-                    <Card key={team.id} className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{team.name}</h4>
-                            {team.is_leader && (
-                              <div title="Team Leader">
-                                <Crown className="h-4 w-4 text-yellow-500" />
-                              </div>
-                            )}
-                          </div>
-                          {team.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {team.description}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {team.member_count || 0}/{team.max_members} members
-                          </p>
-                        </div>
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleLeaveTeam(team.id, team.name)}
-                          disabled={loading}
-                          className="ml-3 text-destructive hover:text-destructive"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          
           <div className="text-center pt-4 border-t">
             <p className="text-xs text-muted-foreground">
               💡 Tip: When any team member completes a quest, it counts for the whole team!

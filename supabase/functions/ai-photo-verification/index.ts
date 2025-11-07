@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import exifr from "https://esm.sh/exifr@7.1.3";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,10 +46,8 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || '';
-    const groqApiKey = Deno.env.get('GROQ_API_KEY') || '';
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY') || '';
-    const aiEnabled = !!(geminiApiKey || groqApiKey || lovableApiKey);
+    const geminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY') || '';
+    const aiEnabled = !!geminiApiKey;
 
     if (!aiEnabled) {
       console.error('No AI keys configured - running heuristic-only verification');
@@ -85,7 +85,7 @@ serve(async (req) => {
         .insert({
           user_id: userId,
           submission_id: body.submissionId,
-          model_used: 'google/gemini-2.5-flash',
+          model_used: 'gemini-2.5-pro',
           status: 'success',
         })
         .select()
@@ -102,7 +102,7 @@ serve(async (req) => {
     console.log('Starting AI verification...');
     const verificationResult = await performAIVerification(
       body,
-      { geminiApiKey, groqApiKey, lovableApiKey }
+      { geminiApiKey }
     );
     console.log('AI verification completed:', verificationResult.verdict);
 
@@ -129,7 +129,7 @@ serve(async (req) => {
             exif_latitude: verificationResult.exif_data?.latitude,
             exif_longitude: verificationResult.exif_data?.longitude,
             exif_timestamp: verificationResult.exif_data?.timestamp,
-            model_used: 'google/gemini-2.5-flash',
+            model_used: 'gemini-2.5-pro',
           })
           .select()
           .maybeSingle();
@@ -166,9 +166,42 @@ serve(async (req) => {
         .update({ status: 'approved' })
         .eq('id', body.submissionId);
     } else if (verificationResult.verdict === 'rejected') {
+      // When AI rejects, delete the submission to make quest available for resubmission
+      // Get submission details first for cleanup
+      const { data: submission } = await supabase
+        .from('Submissions')
+        .select('photo_url, image_urls')
+        .eq('id', body.submissionId)
+        .single();
+
+      // Delete associated files from storage
+      const keysToRemove: string[] = [];
+      const collectKey = (url?: string | null) => {
+        if (!url) return;
+        try {
+          const u = new URL(url);
+          const parts = u.pathname.split('/object/public/');
+          if (parts[1]) keysToRemove.push(parts[1].replace(/^quest-submissions\//, ''));
+        } catch {}
+      };
+      collectKey(submission?.photo_url);
+      (submission?.image_urls || []).forEach((u: string) => collectKey(u));
+
+      if (keysToRemove.length > 0) {
+        await supabase.storage.from('quest-submissions').remove(keysToRemove);
+      }
+
+      // Delete related records
+      await Promise.all([
+        supabase.from('post_likes').delete().eq('submission_id', body.submissionId),
+        supabase.from('post_comments').delete().eq('submission_id', body.submissionId),
+        supabase.from('post_shares').delete().eq('submission_id', body.submissionId)
+      ]);
+
+      // Delete the submission - this makes the quest available for resubmission
       await supabase
         .from('Submissions')
-        .update({ status: 'rejected' })
+        .delete()
         .eq('id', body.submissionId);
     }
     // Leave 'uncertain' as 'pending' for manual review
@@ -191,7 +224,7 @@ serve(async (req) => {
       final_confidence: verificationResult.final_confidence,
       verdict: verificationResult.verdict,
       reason: verificationResult.reason,
-      model_used: 'google/gemini-2.5-flash',
+      model_used: 'gemini-2.5-pro',
       execution_time_ms: executionTime,
     } as any;
 
@@ -271,21 +304,122 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-// Extract EXIF data from image (placeholder - requires exif-reader library)
+// Extract EXIF data from image using exifr library
 async function extractExifData(imageUrl: string): Promise<{
   latitude?: number;
   longitude?: number;
   timestamp?: string;
   camera?: string;
   hasExif: boolean;
+  iso?: number;
+  aperture?: number;
+  shutterSpeed?: string;
+  dimensions?: { width: number; height: number };
 }> {
+  const extractionStart = Date.now();
   try {
-    console.log('📸 EXIF extraction requested but not implemented (requires exif-reader library)');
-    // TODO: Implement EXIF extraction when exif-reader is properly configured for Deno
-    // For now, return empty EXIF data
-    return { hasExif: false };
-  } catch (error) {
-    console.error('EXIF extraction error:', error);
+    console.log('📸 Starting EXIF extraction for:', imageUrl.substring(0, 100) + '...');
+    
+    // Fetch the image
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      console.warn(`Failed to fetch image: ${imageResponse.status}`);
+      return { hasExif: false };
+    }
+
+    // Get image buffer
+    const imageBuffer = await imageResponse.arrayBuffer();
+    
+    // Parse EXIF data with exifr
+    const exifData = await exifr.parse(imageBuffer, {
+      gps: true,
+      exif: true,
+      tiff: true,
+      ifd0: true,
+      ifd1: true,
+    });
+
+    if (!exifData) {
+      console.log('No EXIF data found in image');
+      return { hasExif: false };
+    }
+
+    console.log('Raw EXIF data extracted:', {
+      hasGPS: !!(exifData.latitude && exifData.longitude),
+      hasDateTime: !!exifData.DateTimeOriginal,
+      hasMake: !!exifData.Make,
+      keys: Object.keys(exifData)
+    });
+
+    // Extract GPS coordinates (exifr automatically converts to decimal degrees)
+    const latitude = exifData.latitude;
+    const longitude = exifData.longitude;
+
+    // Extract timestamp (try multiple fields)
+    let timestamp: string | undefined;
+    if (exifData.DateTimeOriginal) {
+      timestamp = new Date(exifData.DateTimeOriginal).toISOString();
+    } else if (exifData.DateTime) {
+      timestamp = new Date(exifData.DateTime).toISOString();
+    } else if (exifData.CreateDate) {
+      timestamp = new Date(exifData.CreateDate).toISOString();
+    }
+
+    // Extract camera information
+    let camera: string | undefined;
+    if (exifData.Make && exifData.Model) {
+      camera = `${exifData.Make} ${exifData.Model}`.trim();
+    } else if (exifData.Model) {
+      camera = exifData.Model;
+    }
+
+    // Extract technical details for authenticity checking
+    const iso = exifData.ISO;
+    const aperture = exifData.FNumber || exifData.ApertureValue;
+    const shutterSpeed = exifData.ExposureTime || exifData.ShutterSpeedValue;
+
+    // Extract image dimensions
+    let dimensions: { width: number; height: number } | undefined;
+    if (exifData.ImageWidth && exifData.ImageHeight) {
+      dimensions = {
+        width: exifData.ImageWidth,
+        height: exifData.ImageHeight
+      };
+    } else if (exifData.ExifImageWidth && exifData.ExifImageHeight) {
+      dimensions = {
+        width: exifData.ExifImageWidth,
+        height: exifData.ExifImageHeight
+      };
+    }
+
+    const extractionTime = Date.now() - extractionStart;
+    console.log(`✅ EXIF extraction completed in ${extractionTime}ms:`, {
+      hasGPS: !!(latitude && longitude),
+      gps: latitude && longitude ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : 'N/A',
+      timestamp,
+      camera,
+      iso,
+      aperture,
+      dimensions
+    });
+
+    return {
+      latitude,
+      longitude,
+      timestamp,
+      camera,
+      hasExif: true,
+      iso,
+      aperture,
+      shutterSpeed: shutterSpeed?.toString(),
+      dimensions
+    };
+
+  } catch (error: any) {
+    const extractionTime = Date.now() - extractionStart;
+    console.error(`❌ EXIF extraction error (${extractionTime}ms):`, error.message);
+    
+    // Return gracefully - missing EXIF is not a critical error
     return { hasExif: false };
   }
 }
@@ -386,7 +520,7 @@ function performAntiSpoofingChecks(
 
 async function performAIVerification(
   request: VerificationRequest,
-  keys: { geminiApiKey?: string; groqApiKey?: string; lovableApiKey?: string }
+  keys: { geminiApiKey?: string }
 ): Promise<AIVerificationResult> {
   const startTime = Date.now();
 
@@ -459,7 +593,7 @@ async function performAIVerification(
   }
 
   // Heuristic-only when no AI keys configured
-  if (!keys.geminiApiKey && !keys.groqApiKey && !keys.lovableApiKey) {
+  if (!keys.geminiApiKey) {
     const finalConfidence = geofenceResult.score * 0.6 + antispoofResult.score * 0.4;
     let verdict: 'verified' | 'uncertain' | 'rejected';
     if (finalConfidence >= 0.85) verdict = 'verified';
@@ -521,134 +655,90 @@ ${request.userLatitude && request.userLongitude ? `User Coordinates: ${request.u
 
 Photo URL is attached. Analyze this photo and determine if it's valid proof of quest completion.`;
 
-  // Provider 1: Gemini
+  // Call Google Gemini 2.5 Pro directly
   if (keys.geminiApiKey) {
     try {
-      console.log('Calling Gemini for verification...');
-      // Fetch image and convert to base64 inline data (Gemini prefers inline)
+      console.log('🔍 Calling Gemini 2.5 Pro for verification...');
+      console.log('📸 Photo URL:', request.photoUrl);
+      
+      // Fetch image and convert to base64 inline data
       const imgResp = await fetch(request.photoUrl);
+      if (!imgResp.ok) {
+        throw new Error(`Failed to fetch image: ${imgResp.status} ${imgResp.statusText}`);
+      }
+      
       const imgBuf = await imgResp.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+      const b64 = base64Encode(new Uint8Array(imgBuf));
+      
+      // Detect proper mime type from URL or content-type header
+      let mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+      if (request.photoUrl.toLowerCase().endsWith('.png')) {
+        mimeType = 'image/png';
+      } else if (request.photoUrl.toLowerCase().endsWith('.jpg') || request.photoUrl.toLowerCase().endsWith('.jpeg')) {
+        mimeType = 'image/jpeg';
+      } else if (request.photoUrl.toLowerCase().endsWith('.webp')) {
+        mimeType = 'image/webp';
+      }
+      
+      console.log('📷 Image mime type:', mimeType, 'Size:', imgBuf.byteLength, 'bytes');
 
+      const geminiPayload = {
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: systemPrompt + "\n\n" + userPrompt },
+              { inline_data: { mime_type: mimeType, data: b64 } }
+            ]
+          }
+        ],
+        generationConfig: { 
+          temperature: 0.2,
+          responseMimeType: 'application/json'
+        }
+      };
+
+      console.log('🚀 Sending request to Gemini API...');
       const gemResp = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + keys.geminiApiKey,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${keys.geminiApiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { text: systemPrompt + "\n\n" + userPrompt },
-                  { inline_data: { mime_type: 'image/jpeg', data: b64 } }
-                ]
-              }
-            ],
-            generationConfig: { temperature: 0.2 }
-          })
+          body: JSON.stringify(geminiPayload)
         }
       );
 
       if (!gemResp.ok) {
-        const t = await gemResp.text();
-        throw new Error(`Gemini HTTP ${gemResp.status}: ${t}`);
+        const errorText = await gemResp.text();
+        console.error('❌ Gemini API error:', gemResp.status, errorText);
+        throw new Error(`Gemini API returned ${gemResp.status}: ${errorText.substring(0, 200)}`);
       }
 
       const gemJson = await gemResp.json();
+      console.log('✅ Gemini response received');
+      
+      if (!gemJson.candidates || gemJson.candidates.length === 0) {
+        console.error('❌ No candidates in Gemini response:', JSON.stringify(gemJson).substring(0, 200));
+        throw new Error('Gemini returned no candidates');
+      }
+      
       const text = gemJson.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
+      console.log('📝 Gemini text response:', text.substring(0, 200));
+      
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Gemini: no JSON in response');
-      const result = JSON.parse(jsonMatch[0]);
-
-      return normalizeAndScore(result);
-    } catch (e) {
-      console.error('Gemini call failed:', e);
-    }
-  }
-
-  // Provider 2: Groq vision
-  if (keys.groqApiKey) {
-    try {
-      console.log('Calling Groq vision for verification...');
-      const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${keys.groqApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.2-11b-vision-preview',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: userPrompt },
-                { type: 'image_url', image_url: { url: request.photoUrl } }
-              ]
-            }
-          ]
-        })
-      });
-
-      if (!groqResp.ok) {
-        const t = await groqResp.text();
-        throw new Error(`Groq HTTP ${groqResp.status}: ${t}`);
+      if (!jsonMatch) {
+        console.error('❌ No JSON found in Gemini response:', text);
+        throw new Error('Gemini response contained no valid JSON');
       }
-
-      const groqJson = await groqResp.json();
-      const content: string = groqJson.choices?.[0]?.message?.content || '';
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Groq: no JSON in response');
+      
       const result = JSON.parse(jsonMatch[0]);
-
+      console.log('✅ Gemini analysis complete:', result);
+      
       return normalizeAndScore(result);
-    } catch (e) {
-      console.error('Groq call failed:', e);
-    }
-  }
-
-  // Provider 3: Lovable AI gateway (fallback)
-  if (keys.lovableApiKey) {
-    try {
-      console.log('Calling Lovable AI Gateway for verification...');
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${keys.lovableApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: userPrompt },
-                { type: 'image_url', image_url: { url: request.photoUrl } }
-              ]
-            }
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Gateway returned ${response.status}: ${errorText}`);
-      }
-
-      const aiResponse = await response.json();
-      const content = aiResponse.choices?.[0]?.message?.content;
-      if (!content) throw new Error('No content in AI response');
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON found in AI response');
-      const result = JSON.parse(jsonMatch[0]);
-
-      return normalizeAndScore(result);
-    } catch (e) {
-      console.error('Lovable AI call failed:', e);
+    } catch (e: any) {
+      console.error('❌ Gemini verification failed:', e.message);
+      console.error('Stack trace:', e.stack);
+      throw e;
     }
   }
 

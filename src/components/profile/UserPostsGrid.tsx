@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostImageCarousel } from '@/components/ui/post-image-carousel';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Post {
   id: string;
@@ -18,6 +20,9 @@ interface Post {
   tags: string[] | null;
   created_at: string;
   post_type: string;
+  likes_count?: number;
+  comments_count?: number;
+  user_has_liked?: boolean;
 }
 
 interface UserPostsGridProps {
@@ -25,6 +30,8 @@ interface UserPostsGridProps {
 }
 
 export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -35,7 +42,14 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
     fetchUserPosts();
     const refetch = () => fetchUserPosts();
     window.addEventListener('community-posts-changed', refetch);
-    return () => window.removeEventListener('community-posts-changed', refetch);
+    // Refresh every 30 seconds to sync likes/comments
+    const refreshInterval = setInterval(() => {
+      fetchUserPosts();
+    }, 30000);
+    return () => {
+      window.removeEventListener('community-posts-changed', refetch);
+      clearInterval(refreshInterval);
+    };
   }, [userId]);
 
   const fetchUserPosts = async () => {
@@ -47,11 +61,69 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
+
+      // Fetch likes and comments for each post
+      const postsWithInteractions = await Promise.all((data || []).map(async (post: any) => {
+        const [likesRes, commentsRes] = await Promise.all([
+          (supabase as any).from("community_post_likes").select("user_id").eq("post_id", post.id),
+          (supabase as any).from("community_post_comments").select("id").eq("post_id", post.id),
+        ]);
+
+        const likes = likesRes.data || [];
+        const comments = commentsRes.data || [];
+
+        return {
+          ...post,
+          likes_count: likes.length,
+          comments_count: comments.length,
+          user_has_liked: user ? likes.some((l: any) => l.user_id === user.id) : false,
+        };
+      }));
+
+      setPosts(postsWithInteractions);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleLike = async (postId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to like posts", variant: "destructive" });
+      return;
+    }
+
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    try {
+      if (post.user_has_liked) {
+        await (supabase as any)
+          .from("community_post_likes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id);
+      } else {
+        await (supabase as any)
+          .from("community_post_likes")
+          .insert({ post_id: postId, user_id: user.id });
+      }
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                user_has_liked: !p.user_has_liked,
+                likes_count: (p.likes_count || 0) + (p.user_has_liked ? -1 : 1),
+              }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error("Error toggling like", err);
+      toast({ title: "Error", description: "Failed to update like", variant: "destructive" });
     }
   };
 
@@ -143,12 +215,12 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
                   <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-lg">
                     <div className="flex gap-4 text-foreground">
                       <div className="flex items-center gap-1">
-                        <Heart className="h-4 w-4" />
-                        <span className="text-sm font-semibold">0</span>
+                        <Heart className={`h-4 w-4 ${post.user_has_liked ? 'fill-red-500 text-red-500' : ''}`} />
+                        <span className="text-sm font-semibold">{post.likes_count || 0}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <MessageCircle className="h-4 w-4" />
-                        <span className="text-sm font-semibold">0</span>
+                        <span className="text-sm font-semibold">{post.comments_count || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -178,25 +250,30 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
                     </div>
                   )}
                   <div className="flex gap-4 pt-2">
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      toast({
-                        title: "Like feature",
-                        description: "Like functionality will be available soon!",
-                      });
-                    }}>
-                      <Heart className="h-4 w-4 mr-2" />
-                      Like
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLike(post.id);
+                      }}
+                    >
+                      <Heart className={`h-4 w-4 mr-2 ${post.user_has_liked ? 'fill-red-500 text-red-500' : ''}`} />
+                      {post.likes_count || 0} {post.likes_count === 1 ? 'Like' : 'Likes'}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      toast({
-                        title: "Comments feature",
-                        description: "Comment functionality will be available soon!",
-                      });
-                    }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/post/${post.id}`);
+                      }}
+                    >
                       <MessageCircle className="h-4 w-4 mr-2" />
-                      Comment
+                      {post.comments_count || 0} {post.comments_count === 1 ? 'Comment' : 'Comments'}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => {
+                    <Button variant="ghost" size="sm" onClick={(e) => {
+                      e.stopPropagation();
                       if (navigator.share) {
                         navigator.share({
                           title: post.title,
@@ -248,6 +325,32 @@ export const UserPostsGrid: React.FC<UserPostsGridProps> = ({ userId }) => {
                       ))}
                     </div>
                   )}
+                  <div className="flex items-center gap-4 pt-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-auto p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLike(post.id);
+                      }}
+                    >
+                      <Heart className={`h-4 w-4 mr-1 ${post.user_has_liked ? 'fill-red-500 text-red-500' : ''}`} />
+                      <span className="text-xs">{post.likes_count || 0}</span>
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-auto p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/post/${post.id}`);
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-1" />
+                      <span className="text-xs">{post.comments_count || 0}</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>

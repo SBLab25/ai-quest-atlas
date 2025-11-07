@@ -56,10 +56,12 @@ export const QuestRecommendations = () => {
   const generateRecommendations = async () => {
     try {
       // Get user's submission history to understand preferences
+      // Exclude rejected submissions - they allow resubmission
       const { data: userSubmissions } = await supabase
         .from('Submissions')
-        .select('quest_id, Quests!inner(quest_type, difficulty)')
-        .eq('user_id', user?.id);
+        .select('quest_id, status, Quests!inner(quest_type, difficulty)')
+        .eq('user_id', user?.id)
+        .neq('status', 'rejected'); // Ignore rejected submissions
 
       // Get all available quests
       const { data: allQuests } = await supabase
@@ -70,7 +72,7 @@ export const QuestRecommendations = () => {
 
       if (!allQuests) return;
 
-      // Get user's completed quest IDs to exclude them
+      // Get user's completed quest IDs to exclude them (excluding rejected ones)
       const completedQuestIds = userSubmissions?.map(sub => sub.quest_id) || [];
 
       // Filter out completed quests

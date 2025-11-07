@@ -53,11 +53,13 @@ export const AIQuestGenerator = () => {
     }
   };
 
-  const fetchAIQuests = async () => {
+  const fetchAIQuests = async (showLoading = true) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from('ai_generated_quests')
         .select('*')
@@ -70,13 +72,17 @@ export const AIQuestGenerator = () => {
       setAiQuests(data || []);
     } catch (error) {
       console.error('Error fetching AI quests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load AI-generated quests",
-        variant: "destructive"
-      });
+      if (showLoading) {
+        toast({
+          title: "Error",
+          description: "Failed to load AI-generated quests",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -93,22 +99,49 @@ export const AIQuestGenerator = () => {
     try {
       setGenerating(true);
       
-      // Use precise profile location with coordinates for better quest generation
+      // Validate location data before generating quest
       let locationData = null;
+      let locationWarning = null;
+      
       if (userProfile?.latitude && userProfile?.longitude) {
-        locationData = {
-          latitude: userProfile.latitude,
-          longitude: userProfile.longitude,
-          address: userProfile.location || `${userProfile.latitude.toFixed(4)}, ${userProfile.longitude.toFixed(4)}`,
-          accuracy: 'profile', // Indicates this is from user's saved profile location
-          coordinates: `${userProfile.latitude.toFixed(6)}, ${userProfile.longitude.toFixed(6)}`
-        };
+        // Validate coordinates are reasonable (not 0,0 or extreme values)
+        const lat = userProfile.latitude;
+        const lng = userProfile.longitude;
+        
+        // Check if coordinates are valid (not default/empty values)
+        if (lat === 0 && lng === 0) {
+          locationWarning = "Your location coordinates appear to be default values (0, 0). Please update your location in your profile for accurate quest generation.";
+        } else if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+          locationWarning = "Your location coordinates appear to be invalid. Please update your location in your profile.";
+        } else {
+          // Coordinates look valid
+          locationData = {
+            latitude: lat,
+            longitude: lng,
+            address: userProfile.location || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+            accuracy: 'profile',
+            coordinates: `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+          };
+        }
       } else if (userProfile?.location) {
         // Fallback to text-based location if no coordinates
+        locationWarning = "No GPS coordinates found. Using text location for quest generation. For better accuracy, please update your location with GPS coordinates in your profile.";
         locationData = {
           address: userProfile.location,
           accuracy: 'text-only'
         };
+      } else {
+        locationWarning = "No location found in your profile. Quests will be generated without location context. Please update your location in your profile for personalized quests.";
+      }
+      
+      // Show warning if location data is problematic
+      if (locationWarning) {
+        toast({
+          title: "Location Warning",
+          description: locationWarning,
+          variant: "destructive",
+          duration: 8000
+        });
       }
       
       const { data, error } = await supabase.functions.invoke('generate-daily-ai-quests', {
@@ -119,21 +152,44 @@ export const AIQuestGenerator = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        // Check if error has a message
+        const errorMessage = error.message || 'Unknown error occurred';
+        throw new Error(errorMessage);
+      }
+
+      // Check if the response indicates failure
+      if (data && data.success === false) {
+        throw new Error(data.error || data.message || 'Quest generation failed');
+      }
 
       toast({
         title: "Quest generated!",
-        description: "A new personalized quest has been created for you"
+        description: locationData 
+          ? `A new personalized quest has been created for your location: ${locationData.address || locationData.coordinates}`
+          : "A new quest has been created for you"
       });
 
-      // Refresh the quest list
-      await fetchAIQuests();
+      // Refresh the quest list without showing loading spinner
+      await fetchAIQuests(false);
+      
+      // Also refresh user profile in case location was updated
+      await fetchUserProfile();
     } catch (error) {
       console.error('Error generating quest:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: "Generation failed",
-        description: "Unable to generate a new quest. Please try again later.",
-        variant: "destructive"
+        description: errorMessage.includes('GEMINI_API_KEY') 
+          ? "AI service is not configured. Please contact support."
+          : errorMessage.includes('profile')
+          ? "Unable to load your profile. Please try again."
+          : errorMessage.length > 100
+          ? "Unable to generate a new quest. Please try again later."
+          : errorMessage,
+        variant: "destructive",
+        duration: 8000
       });
     } finally {
       setGenerating(false);

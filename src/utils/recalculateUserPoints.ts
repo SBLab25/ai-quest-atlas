@@ -1,7 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 interface PointsData {
-  total_points: number;
+  total_points: number; // Score/XP
+  shopping_points: number; // Currency for shopping
   daily_visit_points: number;
   quest_completion_points: number;
   exercise_quota_points: number;
@@ -46,18 +47,36 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
       });
     }
 
-    // More generous daily visit points calculation
-    // Give points for each unique day they submitted + bonus days for active users
+    // Calculate daily visit points more accurately
+    // Count unique days with submissions (verified or pending)
     const uniqueActiveDays = submissionsByDate.size;
-    const bonusDailyVisits = Math.floor(totalSubmissions / 2); // Bonus visits estimated from activity level
-    const dailyVisitPoints = uniqueActiveDays + bonusDailyVisits;
+    
+    // Get user's actual login dates from profiles or streak data
+    // For now, use submission dates as a proxy for daily visits
+    // Bonus points for consistent activity (submitting on multiple days)
+    const consistencyBonus = uniqueActiveDays >= 7 ? Math.floor(uniqueActiveDays / 7) : 0;
+    const dailyVisitPoints = uniqueActiveDays + consistencyBonus;
     
     // Calculate quest completion points (10 points per verified submission)
     const questCompletionPoints = approvedSubmissions * 10;
 
-    // More generous exercise quota points 
-    // Give points for active engagement - users who submit more get more exercise points
-    const exerciseQuotaPoints = Math.max(uniqueActiveDays * 5, totalSubmissions * 3);
+    // Calculate exercise quota points from daily_exercises table
+    let exerciseQuotaPoints = 0;
+    try {
+      const { data: exercises, error: exerciseError } = await supabase
+        .from('daily_exercises')
+        .select('date')
+        .eq('user_id', userId);
+
+      if (!exerciseError && exercises) {
+        // 5 points per day of completed exercises
+        exerciseQuotaPoints = exercises.length * 5;
+      }
+    } catch (error) {
+      console.error('Error fetching daily exercises:', error);
+      // Fallback to estimated points if table doesn't exist yet
+      exerciseQuotaPoints = Math.max(uniqueActiveDays * 5, totalSubmissions * 3);
+    }
 
     // Calculate streak bonus points
     const currentStreak = await getCurrentStreak(userId);
@@ -72,8 +91,37 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
     // Calculate total points with more generous formula
     const totalPoints = dailyVisitPoints + questCompletionPoints + exerciseQuotaPoints + streakBonusPoints;
 
+    // Calculate shopping_points from challenge rewards (reward_points)
+    let shoppingPoints = 0;
+    try {
+      const { data: completedChallenges, error: challengeError } = await supabase
+        .from('user_challenges')
+        .select('challenge_id, completed_at')
+        .eq('user_id', userId)
+        .eq('status', 'completed');
+
+      if (!challengeError && completedChallenges && completedChallenges.length > 0) {
+        // Fetch challenge details to get reward_points
+        const challengeIds = completedChallenges.map(uc => uc.challenge_id);
+        if (challengeIds.length > 0) {
+          const { data: challenges, error: challengesError } = await supabase
+            .from('challenges')
+            .select('id, reward_points')
+            .in('id', challengeIds);
+
+          if (!challengesError && challenges) {
+            shoppingPoints = challenges.reduce((sum, ch) => sum + (ch.reward_points || 0), 0);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching challenge rewards for shopping points:', error);
+      // Keep shoppingPoints at 0 if there's an error
+    }
+
     const calculatedPoints: PointsData = {
       total_points: totalPoints,
+      shopping_points: shoppingPoints,
       daily_visit_points: dailyVisitPoints,
       quest_completion_points: questCompletionPoints,
       exercise_quota_points: exerciseQuotaPoints,

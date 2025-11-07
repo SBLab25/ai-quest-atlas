@@ -148,6 +148,19 @@ export const useBadgeAwarding = () => {
         duration: 5000,
       });
 
+      // Send badge notification
+      if (user?.id && badgeData) {
+        const { sendNotification } = await import('@/utils/notificationHelper');
+        await sendNotification({
+          userId: user.id,
+          type: 'badge_earned',
+          title: `New Badge Earned! 🏆`,
+          message: `You've earned the "${badgeName}" badge!`,
+          relatedId: badgeData.id,
+          relatedType: 'badge',
+        });
+      }
+
       // Refresh badges
       refetchBadges();
 
