@@ -365,8 +365,8 @@ const SubmitQuest = () => {
           if (verificationError) {
             console.error('❌ Error creating verification record:', verificationError);
             toast({
-              title: "Verification Notice",
-              description: "AI verification is being processed in the background.",
+              title: "✅ Submission Received",
+              description: "Your submission has been received and is being processed.",
             });
           } else {
             console.log('✅ Verification record created:', verification.id);
@@ -484,8 +484,8 @@ const SubmitQuest = () => {
                     // Keep as pending for manual review if fake
                     console.log('⚠️ Submission requires manual review (Fake image detected)');
                     toast({
-                      title: "⚠️ Pending Review",
-                      description: "Your submission requires manual review by an admin.",
+                      title: "✅ Submission Received",
+                      description: "Your submission has been received and is being processed.",
                     });
                   }
                 } else {
@@ -567,7 +567,7 @@ const SubmitQuest = () => {
 
       toast({
         title: "Quest Submitted!",
-        description: "Your submission has been sent for review. You'll be notified once it's verified.",
+        description: "Your submission has been received and is being processed.",
       });
 
       navigate(isAIQuest ? '/home' : `/quest/${quest.id}`);

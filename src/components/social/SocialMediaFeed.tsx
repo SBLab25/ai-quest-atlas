@@ -21,6 +21,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { cleanDescription } from "@/utils/cleanDescription";
 
 interface Post {
   id: string;
@@ -122,6 +123,7 @@ export function SocialMediaFeed() {
 
           return {
             ...submission,
+            description: cleanDescription(submission.description),
             photo_urls: submission.image_urls || [],
             likes_count: likes.length,
             comments_count: comments.length,

@@ -205,6 +205,9 @@ const Community = () => {
         })
       );
 
+      // Import cleanDescription utility
+      const { cleanDescription } = await import('@/utils/cleanDescription');
+      
       // Process quest submissions
       const processedQuestPosts = await Promise.all(
         questSubmissions.map(async (s: any) => {
@@ -230,14 +233,14 @@ const Community = () => {
           }
 
           // Clean description to remove AI quest ID metadata if present
-          const cleanDescription = s.description?.replace(/\n\[AI_QUEST_ID:[a-f0-9-]+\]/i, '').trim() || '';
+          const cleanDescriptionText = cleanDescription(s.description);
           
           return {
             id: s.id,
             user_id: s.user_id,
             type: 'quest',
-            content: cleanDescription,
-            description: cleanDescription,
+            content: cleanDescriptionText,
+            description: cleanDescriptionText,
             image_urls: processedImageUrls,
             created_at: s.submitted_at,
             geo_location: s.geo_location,

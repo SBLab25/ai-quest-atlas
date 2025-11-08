@@ -167,13 +167,19 @@ const PostDetail = () => {
         }
       }
 
+      // Clean description to remove AI quest ID metadata and quest ID references
+      const { cleanDescription: cleanDescriptionFn } = await import('@/utils/cleanDescription');
+      const cleanDescriptionText = postType === 'quest' 
+        ? cleanDescriptionFn(postData.description) 
+        : (postData.description || '');
+
       const processedPost: UnifiedPost = {
         id: postData.id,
         user_id: postData.user_id,
         type: postType,
         title: postData.title,
-        content: postType === 'community' ? postData.content : postData.description,
-        description: postData.description,
+        content: postType === 'community' ? postData.content : cleanDescriptionText,
+        description: cleanDescriptionText,
         post_type: postData.post_type,
         tags: postData.tags || [],
         image_urls: processedImageUrls,
@@ -251,7 +257,7 @@ const PostDetail = () => {
       const userIds = (data || []).map((c: any) => c.user_id);
       
       // Fetch profiles, including current user if needed
-      const uniqueUserIds = [...new Set(userIds)];
+      const uniqueUserIds = [...new Set(userIds as string[])];
       if (user && !uniqueUserIds.includes(user.id)) {
         uniqueUserIds.push(user.id);
       }

@@ -18,7 +18,9 @@ import { RecalculateAllPoints } from '@/components/admin/RecalculateAllPoints';
 import { CreditPointsButton } from '@/components/admin/CreditPointsButton';
 import { AIVerificationLogs } from '@/components/admin/AIVerificationLogs';
 import { TeamChallengeManager } from '@/components/admin/TeamChallengeManager';
+import { CreateUserWallets } from '@/components/admin/CreateUserWallets';
 import { sendNotification } from '@/utils/notificationHelper';
+import { cleanDescription } from '@/utils/cleanDescription';
 
 interface Quest {
   id: string;
@@ -977,9 +979,9 @@ export const AdminPanel = () => {
                       </div>
                       {submission.description && (() => {
                         // Remove AI quest ID metadata from description for display
-                        const cleanDescription = submission.description.replace(/\n\[AI_QUEST_ID:[a-f0-9-]+\]/i, '').trim();
-                        return cleanDescription ? (
-                          <p className="text-sm mb-3">{cleanDescription}</p>
+                        const cleanDescriptionText = cleanDescription(submission.description);
+                        return cleanDescriptionText ? (
+                          <p className="text-sm mb-3">{cleanDescriptionText}</p>
                         ) : null;
                       })()}
                        {submission.photo_url && (
@@ -1123,6 +1125,7 @@ export const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
+            <CreateUserWallets />
             <Card>
               <CardHeader>
                 <CardTitle>User Management</CardTitle>

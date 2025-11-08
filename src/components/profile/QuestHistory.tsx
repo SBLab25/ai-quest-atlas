@@ -339,10 +339,11 @@ export const QuestHistory: React.FC<QuestHistoryProps> = ({ userId }) => {
 
                     {submission.description && (() => {
                       // Remove AI quest ID metadata from description for display
-                      const cleanDescription = submission.description.replace(/\n\[AI_QUEST_ID:[a-f0-9-]+\]/i, '').trim();
-                      return cleanDescription ? (
+                      const { cleanDescription } = require('@/utils/cleanDescription');
+                      const cleanDescriptionText = cleanDescription(submission.description);
+                      return cleanDescriptionText ? (
                         <p className="text-sm text-foreground bg-muted/50 p-2 rounded italic">
-                          "{cleanDescription}"
+                          "{cleanDescriptionText}"
                         </p>
                       ) : null;
                     })()}
