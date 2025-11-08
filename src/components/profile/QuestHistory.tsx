@@ -175,7 +175,7 @@ export const QuestHistory: React.FC<QuestHistoryProps> = ({ userId }) => {
   });
 
   const getStats = () => {
-    const verified = submissions.filter(s => s.status === 'verified').length;
+    const verified = submissions.filter(s => s.status === 'verified' || s.status === 'approved').length;
     const pending = submissions.filter(s => s.status === 'pending').length;
     const rejected = submissions.filter(s => s.status === 'rejected').length;
     return { verified, pending, rejected, total: submissions.length };

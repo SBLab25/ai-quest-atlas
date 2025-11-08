@@ -132,11 +132,11 @@ const Community = () => {
           .select("id, user_id, title, content, post_type, tags, image_urls, created_at")
           .order("created_at", { ascending: false }),
         
-        // Quest submissions (verified) - exclude quest_id from display
+        // Quest submissions (approved or verified) - exclude quest_id from display
         supabase
           .from("Submissions")
           .select("id, description, photo_url, image_urls, user_id, geo_location, submitted_at, quest_id")
-          .eq("status", "verified")
+          .in("status", ["approved", "verified"])
           .order("submitted_at", { ascending: false })
       ]);
 

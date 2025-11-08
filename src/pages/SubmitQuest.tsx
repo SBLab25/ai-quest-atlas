@@ -307,7 +307,7 @@ const SubmitQuest = () => {
         up => up.powerups?.effect_type === 'instant_verify'
       );
 
-      // Trigger AI photo verification if photo was uploaded
+      // Trigger automatic AI verification (deepfake detection + Groq analysis) if photo was uploaded
       if (photoUrl && submission) {
         // If instant verify powerup is active, skip AI verification and auto-approve
         if (instantVerifyPowerup) {
@@ -317,8 +317,7 @@ const SubmitQuest = () => {
           const { error: approveError } = await supabase
             .from('Submissions')
             .update({ 
-              status: 'approved',
-              verified_at: new Date().toISOString()
+              status: 'approved'
             })
             .eq('id', submission.id);
 
@@ -342,65 +341,180 @@ const SubmitQuest = () => {
             });
           }
         } else {
-          // Normal AI verification flow
-          console.log('🤖 Triggering AI photo verification...', {
+          // Automatic AI verification flow (deepfake detection + Groq analysis)
+          console.log('🤖 Starting automatic AI verification...', {
             submissionId: submission.id,
             questTitle: quest.title,
           });
-          
-          // Fire verification and show progress
-          const verifyPhoto = async () => {
-            try {
-              const result = await verifyPhotoProof({
-                submissionId: submission.id,
-                photoUrl: photoUrl,
-                questTitle: quest.title,
-                questDescription: quest.description,
-                questLocation: quest.location || '',
-                ...(geoLocation && {
-                  userLatitude: parseFloat(geoLocation.split(',')[0]),
-                  userLongitude: parseFloat(geoLocation.split(',')[1]),
-                }),
-              }, (message, progress) => {
-                console.log(`🔄 ${message} (${progress}%)`);
-              });
-              
-              console.log('✅ Verification completed:', result);
-              
-              if (result.verdict === 'verified') {
+
+          // Create ai_verification record first
+          const { data: verification, error: verificationError } = await supabase
+            .from('ai_verifications' as any)
+            .insert({
+              user_id: user.id,
+              quest_id: isAIQuest ? null : quest.id,
+              submission_id: submission.id,
+              photo_url: photoUrl,
+              verdict: 'uncertain', // Will be updated based on deepfake result
+              reason: 'Automatic verification in progress',
+              model_used: 'deepfake-detection + groq-analysis',
+            })
+            .select()
+            .single();
+
+          if (verificationError) {
+            console.error('❌ Error creating verification record:', verificationError);
+            toast({
+              title: "Verification Notice",
+              description: "AI verification is being processed in the background.",
+            });
+          } else {
+            console.log('✅ Verification record created:', verification.id);
+
+            // Trigger deepfake detection and Groq analysis in parallel
+            const triggerVerification = async () => {
+              try {
+                // Call both Edge Functions in parallel
+                const [deepfakeResult, groqResult] = await Promise.allSettled([
+                  supabase.functions.invoke('deepfake-detection', {
+                    body: {
+                      verificationId: verification.id,
+                      photoUrl: photoUrl,
+                    },
+                  }),
+                  supabase.functions.invoke('groq-analysis', {
+                    body: {
+                      verificationId: verification.id,
+                      photoUrl: photoUrl,
+                    },
+                  }),
+                ]);
+
+                // Process deepfake detection result
+                let deepfakeVerdict: 'REAL' | 'FAKE' | null = null;
+                
+                if (deepfakeResult.status === 'fulfilled') {
+                  const response = deepfakeResult.value;
+                  console.log('🔍 Deepfake detection response:', response);
+                  
+                  // Check response structure - data might be nested
+                  const result = response.data || response;
+                  
+                  if (result && result.deepfakeResult) {
+                    deepfakeVerdict = result.deepfakeResult.isDeepfake ? 'FAKE' : 'REAL';
+                    console.log('🔍 Deepfake detection result from response:', deepfakeVerdict);
+                  } else if (result && result.success) {
+                    // Alternative structure check
+                    if (result.deepfakeResult) {
+                      deepfakeVerdict = result.deepfakeResult.isDeepfake ? 'FAKE' : 'REAL';
+                      console.log('🔍 Deepfake detection result (alt structure):', deepfakeVerdict);
+                    }
+                  }
+                } else {
+                  console.error('❌ Deepfake detection failed:', deepfakeResult);
+                }
+
+                // If we couldn't get verdict from response, wait a bit and query the database
+                // (Edge Function updates DB asynchronously)
+                if (!deepfakeVerdict) {
+                  console.log('📊 Waiting for database update, then querying for deepfake verdict...');
+                  // Wait 2 seconds for the Edge Function to update the database
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  
+                  // Try querying the database with retries
+                  let retries = 3;
+                  while (retries > 0 && !deepfakeVerdict) {
+                    const { data: verificationData, error: fetchError } = await supabase
+                      .from('ai_verifications' as any)
+                      .select('deepfake_verdict')
+                      .eq('id', verification.id)
+                      .single();
+
+                    if (!fetchError && verificationData && verificationData.deepfake_verdict) {
+                      deepfakeVerdict = verificationData.deepfake_verdict as 'REAL' | 'FAKE';
+                      console.log('🔍 Deepfake verdict from database:', deepfakeVerdict);
+                      break;
+                    } else {
+                      console.log(`⏳ Verdict not ready yet, retries left: ${retries - 1}`);
+                      retries--;
+                      if (retries > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                      }
+                    }
+                  }
+                  
+                  if (!deepfakeVerdict) {
+                    console.error('❌ Could not fetch deepfake verdict from database after retries');
+                  }
+                }
+
+                // Process Groq analysis result (log but don't block)
+                if (groqResult.status === 'fulfilled') {
+                  console.log('✅ Groq analysis completed');
+                } else {
+                  console.error('❌ Groq analysis failed:', groqResult);
+                }
+
+                // Update submission status based on deepfake result
+                if (deepfakeVerdict) {
+                  if (deepfakeVerdict === 'REAL') {
+                    // Auto-approve if real
+                    const { error: updateError } = await supabase
+                      .from('Submissions')
+                      .update({ 
+                        status: 'approved'
+                      })
+                      .eq('id', submission.id);
+
+                    if (updateError) {
+                      console.error('❌ Error auto-approving submission:', updateError);
+                      toast({
+                        title: "Verification Error",
+                        description: "Submission verification completed but approval failed. Please contact support.",
+                        variant: "destructive",
+                      });
+                    } else {
+                      console.log('✅ Submission auto-approved (Real image detected)');
+                      toast({
+                        title: "✅ Auto-Approved!",
+                        description: "Your submission passed deepfake detection and was automatically approved.",
+                      });
+                    }
+                  } else {
+                    // Keep as pending for manual review if fake
+                    console.log('⚠️ Submission requires manual review (Fake image detected)');
+                    toast({
+                      title: "⚠️ Pending Review",
+                      description: "Your submission requires manual review by an admin.",
+                    });
+                  }
+                } else {
+                  // If deepfake detection failed, keep as pending
+                  console.log('⚠️ Deepfake detection failed, keeping submission as pending');
+                  toast({
+                    title: "Verification Notice",
+                    description: "AI verification is being processed. Your submission is pending review.",
+                  });
+                }
+              } catch (error: any) {
+                console.error('❌ Error in automatic verification:', error);
                 toast({
-                  title: "✅ AI Verified!",
-                  description: `Your submission passed AI verification with ${(result.final_confidence * 100).toFixed(0)}% confidence.`,
-                });
-              } else if (result.verdict === 'uncertain') {
-                toast({
-                  title: "⚠️ Pending Review",
-                  description: "Your submission needs manual review by admins.",
-                });
-              } else if (result.verdict === 'rejected') {
-                toast({
-                  title: "❌ Verification Failed",
-                  description: result.reason || "Your submission did not pass AI verification.",
-                  variant: "destructive",
+                  title: "Verification Notice",
+                  description: "AI verification is being processed in the background.",
                 });
               }
-            } catch (verifyError: any) {
-              console.error('❌ Photo verification failed:', verifyError);
-              toast({
-                title: "Verification Notice",
-                description: "Photo verification is being processed in the background.",
-              });
-            }
-          };
-          verifyPhoto();
+            };
+
+            // Run verification in background (don't await)
+            triggerVerification();
+          }
         }
       } else if (instantVerifyPowerup && submission) {
         // Even without photo, instant verify can auto-approve
         const { error: approveError } = await supabase
           .from('Submissions')
           .update({ 
-            status: 'approved',
-            verified_at: new Date().toISOString()
+            status: 'approved'
           })
           .eq('id', submission.id);
 

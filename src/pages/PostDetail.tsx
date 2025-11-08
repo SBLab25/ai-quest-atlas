@@ -111,7 +111,7 @@ const PostDetail = () => {
           .from("Submissions")
           .select("id, description, photo_url, image_urls, user_id, geo_location, submitted_at")
           .eq("id", postId)
-          .eq("status", "verified")
+          .in("status", ["approved", "verified"])
           .single();
 
         if (questError || !questPost) {

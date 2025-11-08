@@ -26,7 +26,7 @@ export const useQuestCalendar = () => {
         .from('Submissions')
         .select('submitted_at, status')
         .eq('user_id', user.id)
-        .eq('status', 'verified')
+        .in('status', ['approved', 'verified'])
         .order('submitted_at', { ascending: false });
 
       if (error) throw error;

@@ -79,7 +79,7 @@ export function SocialMediaFeed() {
           geo_location,
           submitted_at
         `)
-        .eq("status", "verified")
+        .in("status", ["approved", "verified"])
         .order("submitted_at", { ascending: false });
 
       if (submissionsError) throw submissionsError;

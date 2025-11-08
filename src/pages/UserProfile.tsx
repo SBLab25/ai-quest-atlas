@@ -106,20 +106,24 @@ const UserProfile = () => {
 
       if (submissionError) throw submissionError;
 
-      // Get badge count
-      const { count: badgeCount, error: badgeError } = await supabase
+      // Get badge count (count unique badge_ids to avoid duplicates)
+      const { data: badgeData, error: badgeError } = await supabase
         .from('User Badges')
-        .select('*', { count: 'exact', head: true })
+        .select('badge_id')
         .eq('user_id', userId);
 
       if (badgeError) throw badgeError;
+
+      // Count unique badge_ids
+      const uniqueBadgeIds = new Set((badgeData || []).map(b => b.badge_id));
+      const badgeCount = uniqueBadgeIds.size;
 
       // Get completed quests count (verified submissions)
       const { count: completedCount, error: completedError } = await supabase
         .from('Submissions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('status', 'verified');
+        .in('status', ['approved', 'verified']);
 
       if (completedError) throw completedError;
 

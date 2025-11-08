@@ -37,7 +37,7 @@ export const recalculateUserPoints = async (userId: string): Promise<PointsData>
         submissionsByDate.set(date, (submissionsByDate.get(date) || 0) + 1);
         totalSubmissions++;
         
-          if (submission.status === 'verified') {
+          if (submission.status === 'verified' || submission.status === 'approved') {
             approvedSubmissions++;
           }
         

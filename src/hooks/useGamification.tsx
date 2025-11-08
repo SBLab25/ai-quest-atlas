@@ -109,6 +109,23 @@ export const useGamification = () => {
         .select('*')
         .order('xp_reward', { ascending: false });
 
+      // Deduplicate achievements by title and requirement_type (keep the one with highest xp_reward)
+      const uniqueAchievements = ((achievementsData || []) as unknown as Achievement[]).reduce((acc: Achievement[], current: Achievement) => {
+        const existing = acc.find(
+          (a) => a.title === current.title && a.requirement_type === current.requirement_type
+        );
+        if (!existing) {
+          acc.push(current);
+        } else {
+          // Replace if current has higher xp_reward
+          const existingIndex = acc.indexOf(existing);
+          if (current.xp_reward > existing.xp_reward) {
+            acc[existingIndex] = current;
+          }
+        }
+        return acc;
+      }, []);
+
       // Fetch user's unlocked achievements
       const { data: userAchievementsData } = await supabase
         .from('user_achievements' as any)
@@ -117,6 +134,21 @@ export const useGamification = () => {
           achievements(*)
         `)
         .eq('user_id', user.id);
+
+      // Deduplicate user achievements by achievement_id (keep the most recent one)
+      const uniqueUserAchievements = ((userAchievementsData || []) as unknown as UserAchievement[]).reduce((acc: UserAchievement[], current: UserAchievement) => {
+        const existing = acc.find(ua => ua.achievement_id === current.achievement_id);
+        if (!existing) {
+          acc.push(current);
+        } else {
+          // Replace if current was unlocked more recently
+          const existingIndex = acc.indexOf(existing);
+          if (new Date(current.unlocked_at) > new Date(existing.unlocked_at)) {
+            acc[existingIndex] = current;
+          }
+        }
+        return acc;
+      }, []);
 
       // Fetch active challenges
       const { data: challengesData } = await supabase
@@ -214,8 +246,8 @@ export const useGamification = () => {
         .eq('id', user.id)
         .maybeSingle();
 
-      setAchievements((achievementsData as any) || []);
-      setUserAchievements((userAchievementsData as any) || []);
+      setAchievements(uniqueAchievements);
+      setUserAchievements(uniqueUserAchievements);
       setChallenges(uniqueChallenges);
       // Note: userChallenges are preserved even after challenges expire
       // This allows scoring to work correctly with historical data

@@ -455,16 +455,16 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5, duration: 0.8 }}
-            className="flex items-center justify-center gap-3 mb-8"
+            className="flex items-center justify-center gap-5 mb-8"
           >
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30"
+              className="w-20 h-20 md:w-24 md:h-24 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30"
             >
-              <DiscoveryAtlasIcon className="w-8 h-8 text-white" />
+              <DiscoveryAtlasIcon className="w-14 h-14 md:w-16 md:h-16 text-white" />
             </motion.div>
-            <span className="text-2xl font-bold text-white tracking-wide">Discovery Atlas</span>
+            <span className="text-4xl md:text-6xl font-bold text-white tracking-wide">Discovery Atlas</span>
           </motion.div>
 
           {/* Animated title */}

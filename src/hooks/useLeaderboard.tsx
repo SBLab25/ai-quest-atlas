@@ -58,7 +58,7 @@ export const useLeaderboard = () => {
           // Get badge and submission counts for display
           const [badgeCountResult, submissionCountResult] = await Promise.all([
             supabase.from("User Badges").select("user_id").eq("user_id", user.id),
-            supabase.from("Submissions").select("user_id, status").eq("user_id", user.id).eq("status", "verified")
+            supabase.from("Submissions").select("user_id, status").eq("user_id", user.id).in("status", ["approved", "verified"])
           ]);
           
           const badges = badgeCountResult.data?.length || 0;

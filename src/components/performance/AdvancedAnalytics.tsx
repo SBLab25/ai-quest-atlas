@@ -91,7 +91,7 @@ export const AdvancedAnalytics = () => {
       const submissionStats = {
         total: submissions?.length || 0,
         pending: submissions?.filter(s => s.status === 'pending').length || 0,
-        verified: submissions?.filter(s => s.status === 'verified').length || 0,
+        verified: submissions?.filter(s => s.status === 'verified' || s.status === 'approved').length || 0,
         rejected: submissions?.filter(s => s.status === 'rejected').length || 0,
       };
 
