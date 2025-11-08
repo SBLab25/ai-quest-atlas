@@ -391,11 +391,13 @@ export const AdminPanel = () => {
     console.log('🔔 updateSubmissionStatus called:', { submissionId, status });
     try {
       // Get submission details - fetch separately to avoid join issues
-      const { data: sub, error: subError } = await supabase
+      const { data: subData, error: subError } = await supabase
         .from('Submissions')
         .select('*')
         .eq('id', submissionId)
         .single();
+      
+      let sub = subData;
       
       console.log('📋 Submission data:', sub);
       console.log('❌ Submission error:', subError);
