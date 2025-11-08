@@ -200,7 +200,7 @@ export const QuestSuggestionsCarousel = () => {
             ))}
           </CarouselContent>
           <CarouselPrevious />
-          <CarouselNext />
+          <CarouselNext className="right-2" />
         </Carousel>
       )}
     </div>

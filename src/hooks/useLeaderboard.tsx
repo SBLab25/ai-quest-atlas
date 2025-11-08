@@ -57,11 +57,13 @@ export const useLeaderboard = () => {
           
           // Get badge and submission counts for display
           const [badgeCountResult, submissionCountResult] = await Promise.all([
-            supabase.from("User Badges").select("user_id").eq("user_id", user.id),
+            supabase.from("User Badges").select("badge_id").eq("user_id", user.id),
             supabase.from("Submissions").select("user_id, status").eq("user_id", user.id).in("status", ["approved", "verified"])
           ]);
           
-          const badges = badgeCountResult.data?.length || 0;
+          // Count unique badge_ids (same logic as BadgeGallery and Home page)
+          const uniqueBadgeIds = new Set((badgeCountResult.data || []).map(b => b.badge_id));
+          const badges = uniqueBadgeIds.size;
           const submissions = submissionCountResult.data?.length || 0;
           
           return {

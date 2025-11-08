@@ -32,6 +32,7 @@ const AllQuests = () => {
   const [allQuests, setAllQuests] = useState<Quest[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [aiQuests, setAiQuests] = useState<Quest[]>([]);
+  const [filteredAiQuests, setFilteredAiQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -260,6 +261,7 @@ const AllQuests = () => {
       );
 
       setAiQuests(allQuests);
+      setFilteredAiQuests(allQuests); // Initialize filtered quests with all AI quests
     } catch (error) {
       console.error("Error fetching AI quests:", error);
     }
@@ -313,6 +315,10 @@ const AllQuests = () => {
 
   const handleFilteredQuests = (filteredQuests: Quest[]) => {
     setQuests(filteredQuests);
+  };
+
+  const handleFilteredAIQuests = (filteredQuests: Quest[]) => {
+    setFilteredAiQuests(filteredQuests);
   };
 
   const generateNewQuest = async () => {
@@ -503,8 +509,14 @@ const AllQuests = () => {
                     {generating ? "Generating..." : "Generate New Quest"}
                   </Button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {aiQuests.map((quest) => {
+                
+                {/* Search and Filter for AI quests */}
+                <SearchAndFilter quests={aiQuests} onFilteredQuests={handleFilteredAIQuests} />
+                
+                <div className="mt-8">
+                  {filteredAiQuests.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredAiQuests.map((quest) => {
                   const isCompleted = completedQuestIds.has(quest.id);
                   return (
                   <Card key={quest.id} className={`cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-l-4 border-l-purple-500 bg-gradient-to-br from-purple-50/50 to-background dark:from-purple-950/20 relative ${isCompleted ? 'ring-2 ring-green-500/50' : ''}`} onClick={() => navigate(`/submit/${quest.id}`)}>
@@ -547,6 +559,18 @@ const AllQuests = () => {
                   </Card>
                   );
                 })}
+                    </div>
+                  ) : (
+                    <Card className="border-dashed">
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-lg font-medium text-muted-foreground mb-2">No AI quests found</p>
+                        <p className="text-sm text-muted-foreground/60 text-center">
+                          Try adjusting your search or filter criteria
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </div>
             ) : (
