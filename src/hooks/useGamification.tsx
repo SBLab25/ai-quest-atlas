@@ -152,14 +152,14 @@ export const useGamification = () => {
 
       // Fetch active challenges
       const { data: challengesData } = await supabase
-        .from('challenges' as any)
+        .from('challenges')
         .select('*')
         .eq('is_active', true)
         .order('end_date', { ascending: true });
 
       // Filter out expired challenges (end_date is in the past)
       const now = new Date().toISOString();
-      const activeNonExpiredChallenges = (challengesData || []).filter(
+      const activeNonExpiredChallenges = ((challengesData || []) as Challenge[]).filter(
         (challenge: Challenge) => {
           // Only include challenges that haven't expired
           return new Date(challenge.end_date) > new Date(now);
@@ -186,7 +186,7 @@ export const useGamification = () => {
 
       // Fetch user's challenges (keep all records for scoring, even if challenge expired)
       const { data: userChallengesData } = await supabase
-        .from('user_challenges' as any)
+        .from('user_challenges')
         .select(`
           *,
           challenges(*)
@@ -195,18 +195,18 @@ export const useGamification = () => {
 
       // Fetch active events
       const { data: eventsData } = await supabase
-        .from('events' as any)
+        .from('events')
         .select('*')
         .eq('is_active', true)
         .order('end_date', { ascending: true });
 
       // Fetch all power-ups
       const { data: powerUpsData } = await supabase
-        .from('powerups' as any)
+        .from('powerups')
         .select('*');
 
       // Deduplicate power-ups by effect_type (keep the first one found)
-      const uniquePowerUps = (powerUpsData || []).reduce((acc: PowerUp[], current: PowerUp) => {
+      const uniquePowerUps = ((powerUpsData || []) as PowerUp[]).reduce((acc: PowerUp[], current: PowerUp) => {
         const existing = acc.find(p => p.effect_type === current.effect_type);
         if (!existing) {
           acc.push(current);
@@ -251,8 +251,8 @@ export const useGamification = () => {
       setChallenges(uniqueChallenges);
       // Note: userChallenges are preserved even after challenges expire
       // This allows scoring to work correctly with historical data
-      setUserChallenges((userChallengesData as any) || []);
-      setEvents((eventsData as any) || []);
+      setUserChallenges((userChallengesData || []) as UserChallenge[]);
+      setEvents((eventsData || []) as Event[]);
       setPowerUps(uniquePowerUps);
       setUserPowerUps(uniqueUserPowerUps);
       setXp((profileData as any)?.xp || 0);
