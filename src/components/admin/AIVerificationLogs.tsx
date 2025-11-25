@@ -374,24 +374,24 @@ export const AIVerificationLogs: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Verifications</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">Total Verifications</CardTitle>
             <Brain className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{verifications.length}</div>
+            <div className="text-xl md:text-2xl font-bold">{verifications.length}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Verified</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">Verified</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">
+            <div className="text-xl md:text-2xl font-bold text-green-500">
               {verifications.filter((v) => v.verdict === 'verified').length}
             </div>
           </CardContent>
@@ -399,11 +399,11 @@ export const AIVerificationLogs: React.FC = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uncertain</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">Uncertain</CardTitle>
             <AlertTriangle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-500">
+            <div className="text-xl md:text-2xl font-bold text-yellow-500">
               {verifications.filter((v) => v.verdict === 'uncertain').length}
             </div>
           </CardContent>
@@ -411,11 +411,11 @@ export const AIVerificationLogs: React.FC = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">Rejected</CardTitle>
             <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-500">
+            <div className="text-xl md:text-2xl font-bold text-red-500">
               {verifications.filter((v) => v.verdict === 'rejected').length}
             </div>
           </CardContent>
@@ -425,19 +425,19 @@ export const AIVerificationLogs: React.FC = () => {
       {/* Verifications Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <CardTitle>AI Verification History</CardTitle>
-              <CardDescription>Recent photo verification results</CardDescription>
+              <CardTitle className="text-base md:text-lg">AI Verification History</CardTitle>
+              <CardDescription className="text-xs md:text-sm">Recent photo verification results</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchData}>
+            <Button variant="outline" size="sm" onClick={fetchData} className="w-full sm:w-auto">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
+        <CardContent className="overflow-x-auto">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
@@ -482,16 +482,17 @@ export const AIVerificationLogs: React.FC = () => {
                       {Math.round(verification.final_confidence * 100)}%
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
+                   <TableCell>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                       {verification.deepfake_verdict ? (
                         <>
                           <Badge
                             variant={verification.deepfake_verdict === 'FAKE' ? 'destructive' : 'default'}
+                            className="text-xs"
                           >
                             {verification.deepfake_verdict}
                             {verification.deepfake_confidence !== null && verification.deepfake_confidence !== undefined && (
-                              <span className="ml-1 text-xs">
+                              <span className="ml-1">
                                 ({Math.round(verification.deepfake_confidence * 100)}%)
                               </span>
                             )}
@@ -501,6 +502,7 @@ export const AIVerificationLogs: React.FC = () => {
                             variant="ghost"
                             onClick={() => resetDeepfakeVerdict(verification.id)}
                             title="Reset deepfake verdict"
+                            className="h-8 px-2"
                           >
                             <RotateCcw className="h-3 w-3" />
                           </Button>
@@ -511,34 +513,35 @@ export const AIVerificationLogs: React.FC = () => {
                           variant="outline"
                           onClick={() => runDeepfakeAnalysis(verification.id, verification.photo_url)}
                           disabled={!verification.photo_url || analyzingVerificationId === verification.id}
+                          className="text-xs"
                         >
-                          <Bot className="h-4 w-4 mr-1" />
+                          <Bot className="h-3 w-3 mr-1" />
                           {analyzingVerificationId === verification.id ? 'Analyzing...' : 'Analyze'}
                         </Button>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
+                   <TableCell>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                       {verification.analysis_report ? (
                         <>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <Sparkles className="h-4 w-4 mr-1" />
+                              <Button size="sm" variant="outline" className="text-xs">
+                                <Sparkles className="h-3 w-3 mr-1" />
                                 View Report
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>Image Analysis Report</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="text-base md:text-lg">Image Analysis Report</DialogTitle>
+                                <DialogDescription className="text-xs md:text-sm">
                                   Analysis performed on {verification.analyzed_at ? new Date(verification.analyzed_at).toLocaleString() : 'Unknown date'}
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="mt-4">
                                 <div className="prose prose-sm max-w-none">
-                                  <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
+                                  <pre className="whitespace-pre-wrap text-xs md:text-sm bg-muted p-3 md:p-4 rounded-lg">
                                     {verification.analysis_report}
                                   </pre>
                                 </div>
@@ -550,6 +553,7 @@ export const AIVerificationLogs: React.FC = () => {
                             variant="ghost"
                             onClick={() => resetAnalysis(verification.id)}
                             title="Reset analysis"
+                            className="h-8 px-2"
                           >
                             <RotateCcw className="h-3 w-3" />
                           </Button>
@@ -560,26 +564,27 @@ export const AIVerificationLogs: React.FC = () => {
                           variant="outline"
                           onClick={() => runGroqAnalysis(verification.id, verification.photo_url)}
                           disabled={!verification.photo_url || analyzingVerificationId === verification.id}
+                          className="text-xs"
                         >
-                          <Sparkles className="h-4 w-4 mr-1" />
+                          <Sparkles className="h-3 w-3 mr-1" />
                           {analyzingVerificationId === verification.id ? 'Generating...' : 'Generate'}
                         </Button>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                   <TableCell>
                     {verification.photo_url ? (
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <Image className="h-4 w-4 mr-1" />
-                            View Image
+                          <Button size="sm" variant="outline" className="text-xs">
+                            <Image className="h-3 w-3 mr-1" />
+                            View
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Submission Image</DialogTitle>
-                            <DialogDescription>
+                            <DialogTitle className="text-base md:text-lg">Submission Image</DialogTitle>
+                            <DialogDescription className="text-xs md:text-sm">
                               Quest submission photo for verification
                             </DialogDescription>
                           </DialogHeader>
@@ -596,7 +601,7 @@ export const AIVerificationLogs: React.FC = () => {
                         </DialogContent>
                       </Dialog>
                     ) : (
-                      <span className="text-sm text-muted-foreground">No image</span>
+                      <span className="text-xs text-muted-foreground">No image</span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
