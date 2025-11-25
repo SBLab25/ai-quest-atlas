@@ -1,5 +1,5 @@
+import React, { useEffect, useState } from 'react';
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { useEffect, useState } from 'react';
 
 interface DiscoveryAtlasDB extends DBSchema {
   quests: {
