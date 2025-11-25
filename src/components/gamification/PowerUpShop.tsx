@@ -96,7 +96,8 @@ export const PowerUpShop = () => {
         throw error;
       }
 
-      if (data?.success) {
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result?.success) {
         // Refresh points and powerups
         await Promise.all([refetchPoints(), refresh()]);
         
@@ -107,7 +108,7 @@ export const PowerUpShop = () => {
         
         setSelectedPowerUp(null);
       } else {
-        throw new Error(data?.error || 'Purchase failed');
+        throw new Error(result?.error || 'Purchase failed');
       }
     } catch (error: any) {
       console.error('Purchase error:', error);

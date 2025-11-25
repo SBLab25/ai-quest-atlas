@@ -346,7 +346,7 @@ const Profile = () => {
     }
   };
 
-  const handleLocationSelect = (locationData: { latitude: number; longitude: number; address?: string; accuracy?: number }) => {
+  const handleLocationSelect = async (locationData: { latitude: number; longitude: number; address?: string; accuracy?: number }) => {
     // Update form data
     setFormData({
       ...formData,
@@ -354,30 +354,30 @@ const Profile = () => {
     });
 
     // Save to database
-    supabase
-      .from('profiles')
-      .update({
-        location: locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user?.id)
-      .then(() => {
-        fetchProfile();
-        toast({
-          title: "Location updated",
-          description: "Your location has been saved successfully."
-        });
-      })
-      .catch((error) => {
-        console.error('Database error:', error);
-        toast({
-          title: "Error",
-          description: "Failed to save location. Please try again.",
-          variant: "destructive"
-        });
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          location: locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user?.id);
+      
+      fetchProfile();
+      toast({
+        title: "Location updated",
+        description: "Your location has been saved successfully."
       });
+    } catch (error) {
+      console.error('Database error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save location. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Improved reverse geocoding with multiple services
@@ -902,9 +902,9 @@ const Profile = () => {
         isOpen={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onLocationSelect={handleLocationSelect}
-        currentLocation={profile?.latitude && profile?.longitude ? {
-          latitude: profile.latitude,
-          longitude: profile.longitude,
+        currentLocation={(profile as any)?.latitude && (profile as any)?.longitude ? {
+          latitude: (profile as any).latitude,
+          longitude: (profile as any).longitude,
           address: profile.location
         } : undefined}
       />
