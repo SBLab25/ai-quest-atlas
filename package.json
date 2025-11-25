@@ -54,6 +54,7 @@
     "embla-carousel-react": "^8.3.0",
     "framer-motion": "^12.23.12",
     "gsap": "^3.13.0",
+    "idb": "^8.0.3",
     "input-otp": "^1.2.4",
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
@@ -74,6 +75,8 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.181.0",
     "vaul": "^0.9.3",
+    "vite-plugin-pwa": "^1.1.0",
+    "workbox-window": "^7.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
