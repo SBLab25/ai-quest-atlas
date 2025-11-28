@@ -623,11 +623,11 @@ const SubmitQuest = () => {
 
         {/* Quest Context */}
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-xl">
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-lg md:text-xl">
               Submitting for: {quest.title}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm md:text-base">
               {quest.description}
             </CardDescription>
           </CardHeader>
@@ -635,12 +635,12 @@ const SubmitQuest = () => {
 
         {/* Submission Form */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5" />
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+              <Camera className="h-4 w-4 md:h-5 md:w-5" />
               Submit Your Quest
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm md:text-base">
               Share your experience and proof of completion
             </CardDescription>
           </CardHeader>
@@ -734,20 +734,22 @@ const SubmitQuest = () => {
               {/* Location */}
               <div>
                 <Label htmlFor="location">Location (Optional)</Label>
-                <div className="flex gap-2 mt-1">
+                <div className="flex flex-col sm:flex-row gap-2 mt-1">
                   <Input
                     id="location"
                     placeholder="Enter location or coordinates"
                     value={geoLocation}
                     onChange={(e) => setGeoLocation(e.target.value)}
+                    className="flex-1"
                   />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={getCurrentLocation}
-                    className="shrink-0"
+                    className="shrink-0 w-full sm:w-auto"
                   >
-                    <MapPin className="h-4 w-4" />
+                    <MapPin className="h-4 w-4 mr-2 sm:mr-0" />
+                    <span className="sm:hidden">Detect Location</span>
                   </Button>
                 </div>
               </div>

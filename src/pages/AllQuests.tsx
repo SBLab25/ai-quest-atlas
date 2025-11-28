@@ -380,30 +380,31 @@ const AllQuests = () => {
       
       <main className="container mx-auto px-6 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-4">
+        <div className="text-center mb-8 md:mb-12">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-3 md:mb-4 px-4">
             Explore All Quests
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
             Discover community quests, AI-generated adventures, and personalized recommendations.
           </p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 mb-8 justify-center">
+        <div className="flex flex-col sm:flex-row gap-2 mb-6 md:mb-8 justify-center px-4">
           <button
             onClick={() => setActiveTab('regular')}
-            className={`px-6 py-3 rounded-full font-medium transition-all duration-200 ${
+            className={`px-4 md:px-6 py-2 md:py-3 rounded-full font-medium text-sm md:text-base transition-all duration-200 ${
               activeTab === 'regular' 
                 ? 'bg-primary text-primary-foreground shadow-lg' 
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            Community Quests ({allQuests.length})
+            <span className="hidden sm:inline">Community Quests ({allQuests.length})</span>
+            <span className="sm:hidden">Community ({allQuests.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('ai')}
-            className={`px-6 py-3 rounded-full font-medium transition-all duration-200 ${
+            className={`px-4 md:px-6 py-2 md:py-3 rounded-full font-medium text-sm md:text-base transition-all duration-200 ${
               activeTab === 'ai' 
                 ? 'bg-primary text-primary-foreground shadow-lg' 
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted/80'
@@ -413,7 +414,7 @@ const AllQuests = () => {
           </button>
           <button
             onClick={() => setActiveTab('recommended')}
-            className={`px-6 py-3 rounded-full font-medium transition-all duration-200 ${
+            className={`px-4 md:px-6 py-2 md:py-3 rounded-full font-medium text-sm md:text-base transition-all duration-200 ${
               activeTab === 'recommended' 
                 ? 'bg-primary text-primary-foreground shadow-lg' 
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted/80'
