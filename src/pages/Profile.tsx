@@ -484,9 +484,9 @@ const Profile = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10 p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-8 rounded-b-xl shadow-sm">
-          <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-6 md:mb-8 rounded-b-xl shadow-sm">
+          <div className="container mx-auto px-4 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -494,16 +494,17 @@ const Profile = () => {
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to Home
+                <span className="hidden sm:inline">Back to Home</span>
+                <span className="sm:hidden">Back</span>
               </Button>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                <h1 className="text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                   Profile
                 </h1>
-                <p className="text-sm text-muted-foreground">Manage your account & showcase your adventures</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Manage your account & showcase your adventures</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-end">
               <ThemeToggleButton />
               <NotificationCenter />
               <StreakDisplay />
@@ -516,8 +517,8 @@ const Profile = () => {
           {/* Profile Header */}
           <div className="lg:col-span-4">
             <Card className="overflow-hidden bg-gradient-to-r from-card via-card to-secondary/5 border-0 shadow-lg">
-              <CardContent className="p-8">
-                <div className="flex flex-col md:flex-row items-center gap-6">
+              <CardContent className="p-4 md:p-6 lg:p-8">
+                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
                   {/* Profile Image */}
                   <div className="relative group">
                     <ProfileImageUpload
