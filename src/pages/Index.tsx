@@ -9,12 +9,26 @@ import CommunitySection from '@/components/landing/CommunitySection'
 import TestimonialsSection from '@/components/landing/TestimonialsSection'
 import CallToActionSection from '@/components/landing/CallToActionSection'
 import { LottieLoading } from '@/components/ui/LottieLoading'
+import { OnboardingTutorial } from '@/components/onboarding/OnboardingTutorial'
+import { useOnboarding } from '@/hooks/useOnboarding'
 
 const Index = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [isNavigating, setIsNavigating] = useState(false)
+  const { hasCompletedOnboarding, startOnboarding } = useOnboarding()
+
+  // Show onboarding for first-time users
+  useEffect(() => {
+    if (user && !hasCompletedOnboarding) {
+      // Delay onboarding slightly to let the page load
+      const timer = setTimeout(() => {
+        startOnboarding()
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [user, hasCompletedOnboarding, startOnboarding])
 
   // Reset navigation state if we're still on the index page
   useEffect(() => {
@@ -46,6 +60,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
+      {/* Onboarding Tutorial */}
+      <OnboardingTutorial />
+      
       {/* Theme Toggle */}
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggleButton start="top-right" />

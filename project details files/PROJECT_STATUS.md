@@ -224,12 +224,12 @@
 - [ ] Export analytics data
 
 ### 🎨 UI/UX Improvements
-- [ ] Onboarding tutorial for new users
-- [ ] Interactive quest walkthrough
-- [ ] Accessibility improvements (ARIA labels, keyboard navigation)
-- [ ] More animation effects
-- [ ] Custom themes/skins
-- [ ] User preference settings
+- [x] Onboarding tutorial for new users
+- [x] Interactive quest walkthrough
+- [x] Accessibility improvements (ARIA labels, keyboard navigation)
+- [x] More animation effects
+- [x] Custom themes/skins (7 themes available)
+- [x] User preference settings
 
 ### 🔐 Security & Privacy
 - [ ] Two-factor authentication
