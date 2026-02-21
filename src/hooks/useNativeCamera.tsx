@@ -1,5 +1,7 @@
 import { useState } from 'react';
+// @ts-ignore - Capacitor packages installed natively
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+// @ts-ignore - Capacitor packages installed natively
 import { Capacitor } from '@capacitor/core';
 import { toast } from '@/hooks/use-toast';
 

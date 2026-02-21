@@ -159,12 +159,12 @@ export const useGamification = () => {
 
       // Filter out expired challenges (end_date is in the past)
       const now = new Date().toISOString();
-      const activeNonExpiredChallenges = (challengesData || []).filter(
-        (challenge: Challenge) => {
+      const activeNonExpiredChallenges = ((challengesData || []) as any[]).filter(
+        (challenge: any) => {
           // Only include challenges that haven't expired
           return new Date(challenge.end_date) > new Date(now);
         }
-      );
+      ) as Challenge[];
 
       // Deduplicate challenges: if multiple challenges have the same title and type,
       // keep only the one with the latest end_date (most recent)
@@ -206,7 +206,7 @@ export const useGamification = () => {
         .select('*');
 
       // Deduplicate power-ups by effect_type (keep the first one found)
-      const uniquePowerUps = (powerUpsData || []).reduce((acc: PowerUp[], current: PowerUp) => {
+      const uniquePowerUps = ((powerUpsData || []) as any[]).reduce((acc: PowerUp[], current: PowerUp) => {
         const existing = acc.find(p => p.effect_type === current.effect_type);
         if (!existing) {
           acc.push(current);
@@ -248,12 +248,12 @@ export const useGamification = () => {
 
       setAchievements(uniqueAchievements);
       setUserAchievements(uniqueUserAchievements);
-      setChallenges(uniqueChallenges);
+      setChallenges(uniqueChallenges as Challenge[]);
       // Note: userChallenges are preserved even after challenges expire
       // This allows scoring to work correctly with historical data
       setUserChallenges((userChallengesData as any) || []);
       setEvents((eventsData as any) || []);
-      setPowerUps(uniquePowerUps);
+      setPowerUps(uniquePowerUps as PowerUp[]);
       setUserPowerUps(uniqueUserPowerUps);
       setXp((profileData as any)?.xp || 0);
       setLevel((profileData as any)?.level || 1);
