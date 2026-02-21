@@ -471,13 +471,12 @@ export const AdminPanel = () => {
             p_submission_id: submissionId
           });
           
-          const result = rpcResult as { success?: boolean; quest_id?: string } | null;
-          if (!rpcError && result?.success) {
-            console.log('✅ Submission deleted via RPC function:', result);
+          if (!rpcError && rpcResult?.success) {
+            console.log('✅ Submission deleted via RPC function:', rpcResult);
             deleteSuccess = true;
             // Use quest_id from RPC result if available
-            if (result.quest_id && !sub?.quest_id) {
-              sub = { ...sub, quest_id: result.quest_id };
+            if (rpcResult.quest_id && !sub?.quest_id) {
+              sub = { ...sub, quest_id: rpcResult.quest_id };
             }
           } else {
             console.warn('⚠️ RPC function not available or failed, trying direct delete:', rpcError);
@@ -721,56 +720,56 @@ export const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-3 md:p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 mb-4 md:mb-6">
-          <Settings className="h-5 w-5 md:h-6 md:w-6" />
-          <h1 className="text-2xl md:text-3xl font-bold">Admin Panel</h1>
+        <div className="flex items-center gap-3 mb-6">
+          <Settings className="h-6 w-6" />
+          <h1 className="text-3xl font-bold">Admin Panel</h1>
         </div>
 
         <Tabs defaultValue="quests" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 gap-1 h-auto">
-            <TabsTrigger value="quests" className="text-xs md:text-sm px-2 py-2">Quests</TabsTrigger>
-            <TabsTrigger value="submissions" className="text-xs md:text-sm px-2 py-2">Submissions</TabsTrigger>
-            <TabsTrigger value="posts" className="text-xs md:text-sm px-2 py-2">Posts</TabsTrigger>
-            <TabsTrigger value="users" className="text-xs md:text-sm px-2 py-2">Users</TabsTrigger>
-            <TabsTrigger value="challenges" className="text-xs md:text-sm px-2 py-2">Challenges</TabsTrigger>
-            <TabsTrigger value="verifications" className="text-xs md:text-sm px-2 py-2">AI</TabsTrigger>
-            <TabsTrigger value="analytics" className="text-xs md:text-sm px-2 py-2">Analytics</TabsTrigger>
-            <TabsTrigger value="points" className="text-xs md:text-sm px-2 py-2">Points</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="quests">Quests</TabsTrigger>
+            <TabsTrigger value="submissions">Submissions</TabsTrigger>
+            <TabsTrigger value="posts">Community Posts</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="challenges">Team Challenges</TabsTrigger>
+            <TabsTrigger value="verifications">AI Verifications</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="points">Points</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quests" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base md:text-lg">Quest Management</CardTitle>
-                    <CardDescription className="text-xs md:text-sm">Create and manage quests</CardDescription>
+                    <CardTitle>Quest Management</CardTitle>
+                    <CardDescription>Create and manage quests</CardDescription>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                    <div className="flex items-center gap-2 justify-center">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs md:text-sm">Regular</span>
+                      <span className="text-sm">Regular</span>
                       <Switch
                         checked={showAiQuests}
                         onCheckedChange={setShowAiQuests}
                         className="data-[state=checked]:bg-blue-600"
                       />
-                      <span className="text-xs md:text-sm">AI Generated</span>
+                      <span className="text-sm">AI Generated</span>
                       <Bot className="h-4 w-4 text-blue-600" />
                     </div>
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button className="w-full sm:w-auto">
+                        <Button>
                           <Plus className="h-4 w-4 mr-2" />
                           Create {showAiQuests ? 'AI Quest' : 'Quest'}
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+                      <DialogContent className="max-w-md">
                         <DialogHeader>
-                          <DialogTitle className="text-base md:text-lg">Create New {showAiQuests ? 'AI Quest' : 'Quest'}</DialogTitle>
-                          <DialogDescription className="text-xs md:text-sm">Add a new {showAiQuests ? 'AI-generated quest' : 'quest'} for users to complete</DialogDescription>
+                          <DialogTitle>Create New {showAiQuests ? 'AI Quest' : 'Quest'}</DialogTitle>
+                          <DialogDescription>Add a new {showAiQuests ? 'AI-generated quest' : 'quest'} for users to complete</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                           <Input
@@ -879,25 +878,25 @@ export const AdminPanel = () => {
                       </div>
                     ) : (
                       aiQuests.map((quest) => (
-                        <div key={quest.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 md:p-4 border rounded-lg">
-                          <div className="flex-1 w-full">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <h3 className="font-semibold text-sm md:text-base">{quest.title}</h3>
-                              <Sparkles className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
+                        <div key={quest.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{quest.title}</h3>
+                              <Sparkles className="h-4 w-4 text-blue-600" />
                             </div>
-                            <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{quest.description}</p>
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <Badge variant={quest.is_active ? 'default' : 'secondary'} className="text-xs">
+                            <p className="text-sm text-muted-foreground">{quest.description}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant={quest.is_active ? 'default' : 'secondary'}>
                                 {quest.is_active ? 'Active' : 'Inactive'}
                               </Badge>
-                              <Badge variant="outline" className="text-xs">{quest.quest_type}</Badge>
-                              <span className="text-xs text-muted-foreground">Diff: {quest.difficulty}</span>
+                              <Badge variant="outline">{quest.quest_type}</Badge>
+                              <span className="text-sm text-muted-foreground">Difficulty: {quest.difficulty}</span>
                               {quest.latitude && quest.longitude && (
-                                <Badge variant="secondary" className="text-xs">GPS: {quest.latitude.toFixed(2)}, {quest.longitude.toFixed(2)}</Badge>
+                                <Badge variant="secondary" className="text-xs">GPS: {quest.latitude.toFixed(4)}, {quest.longitude.toFixed(4)}</Badge>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -918,19 +917,19 @@ export const AdminPanel = () => {
                     )
                   ) : (
                     quests.map((quest) => (
-                      <div key={quest.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 md:p-4 border rounded-lg">
-                        <div className="flex-1 w-full">
-                          <h3 className="font-semibold text-sm md:text-base">{quest.title}</h3>
-                          <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{quest.description}</p>
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <Badge variant={quest.is_active ? 'default' : 'secondary'} className="text-xs">
+                      <div key={quest.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{quest.title}</h3>
+                          <p className="text-sm text-muted-foreground">{quest.description}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant={quest.is_active ? 'default' : 'secondary'}>
                               {quest.is_active ? 'Active' : 'Inactive'}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">{quest.quest_type}</Badge>
-                            <span className="text-xs text-muted-foreground">Diff: {quest.difficulty}</span>
+                            <Badge variant="outline">{quest.quest_type}</Badge>
+                            <span className="text-sm text-muted-foreground">Difficulty: {quest.difficulty}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -957,17 +956,17 @@ export const AdminPanel = () => {
           <TabsContent value="submissions" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base md:text-lg">Submission Reviews</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Review and approve user submissions</CardDescription>
+                <CardTitle>Submission Reviews</CardTitle>
+                <CardDescription>Review and approve user submissions</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {submissions.map((submission) => (
-                    <div key={submission.id} className="p-3 md:p-4 border rounded-lg">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-sm md:text-base">Submission {(submission.id?.slice(0, 8)) ?? 'unknown'}</h3>
-                          <p className="text-xs md:text-sm text-muted-foreground">
+                    <div key={submission.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold">Submission {(submission.id?.slice(0, 8)) ?? 'unknown'}</h3>
+                          <p className="text-sm text-muted-foreground">
                             Quest: {(submission.quest_id?.slice(0, 8)) ?? 'N/A'} • {submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : '—'}
                           </p>
                         </div>
@@ -976,7 +975,6 @@ export const AdminPanel = () => {
                             submission.status === 'verified' ? 'default' :
                             submission.status === 'rejected' ? 'destructive' : 'secondary'
                           }
-                          className="text-xs"
                         >
                           {submission.status}
                         </Badge>
@@ -985,7 +983,7 @@ export const AdminPanel = () => {
                         // Remove AI quest ID metadata from description for display
                         const cleanDescriptionText = cleanDescription(submission.description);
                         return cleanDescriptionText ? (
-                          <p className="text-xs md:text-sm mb-3 line-clamp-2">{cleanDescriptionText}</p>
+                          <p className="text-sm mb-3">{cleanDescriptionText}</p>
                         ) : null;
                       })()}
                        {submission.photo_url && (
@@ -993,19 +991,18 @@ export const AdminPanel = () => {
                            <img 
                              src={submission.photo_url} 
                              alt="Submission" 
-                             className="w-full max-w-full sm:max-w-md h-40 sm:h-48 object-cover rounded-lg border"
+                             className="w-full max-w-md h-48 object-cover rounded-lg border"
                              onError={(e) => {
                                e.currentTarget.style.display = 'none';
                              }}
                            />
                          </div>
                        )}
-                       <div className="flex flex-wrap items-center gap-2">
+                       <div className="flex items-center gap-2">
                          <Button
                            size="sm"
                            onClick={() => updateSubmissionStatus(submission.id, 'verified')}
                            disabled={submission.status === 'verified'}
-                           className="text-xs"
                          >
                            Approve
                          </Button>
@@ -1014,7 +1011,6 @@ export const AdminPanel = () => {
                            variant="outline"
                            onClick={() => updateSubmissionStatus(submission.id, 'rejected')}
                            disabled={submission.status === 'rejected'}
-                           className="text-xs"
                          >
                            Reject
                          </Button>
@@ -1023,9 +1019,8 @@ export const AdminPanel = () => {
                            variant="secondary"
                            onClick={() => updateSubmissionStatus(submission.id, 'pending')}
                            disabled={submission.status === 'pending'}
-                           className="text-xs"
                          >
-                           Reset
+                           Reset to Pending
                          </Button>
                        </div>
                     </div>
@@ -1038,24 +1033,24 @@ export const AdminPanel = () => {
           <TabsContent value="posts" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base md:text-lg">Community Posts Management</CardTitle>
-                    <CardDescription className="text-xs md:text-sm">Manage community posts and fix image issues</CardDescription>
+                    <CardTitle>Community Posts Management</CardTitle>
+                    <CardDescription>Manage community posts and fix image issues</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {communityPosts.map((post) => (
-                    <div key={post.id} className="p-3 md:p-4 border rounded-lg">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
+                    <div key={post.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-sm md:text-base">{post.title}</h3>
-                          <p className="text-xs md:text-sm text-muted-foreground">
+                          <h3 className="font-semibold">{post.title}</h3>
+                          <p className="text-sm text-muted-foreground">
                             By {post.full_name} (@{post.username}) • {new Date(post.created_at).toLocaleDateString()}
                           </p>
-                          <p className="text-xs md:text-sm mt-2 line-clamp-2">{post.content}</p>
+                          <p className="text-sm mt-2 line-clamp-2">{post.content}</p>
                           {post.tags && post.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {post.tags.map((tag, index) => (

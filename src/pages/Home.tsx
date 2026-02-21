@@ -205,16 +205,16 @@ const Home = () => {
       
       <main className="container mx-auto px-6 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-8 md:mb-12">
-          <div className="inline-flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <div className="p-2 md:p-3 bg-primary/10 rounded-2xl">
-              <DiscoveryAtlasIcon className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="p-3 bg-primary/10 rounded-2xl">
+              <DiscoveryAtlasIcon className="w-8 h-8 text-primary" />
             </div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
               Adventure Camp
             </h1>
           </div>
-          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Welcome back, adventurer! Your next epic quest awaits in the vast world of discovery.
           </p>
         </div>
@@ -285,17 +285,15 @@ const Home = () => {
             </div>
 
             {/* Gamification & Quests Tabs */}
-            <Tabs defaultValue="quests" className="mb-6 md:mb-8">
+            <Tabs defaultValue="quests" className="mb-8">
               <TabsList className="grid w-full grid-cols-2 max-w-md">
-                <TabsTrigger value="quests" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-                  <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Quest Feed</span>
-                  <span className="sm:hidden">Quests</span>
+                <TabsTrigger value="quests" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Quest Feed
                 </TabsTrigger>
-                <TabsTrigger value="gamification" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-                  <Zap className="h-3 w-3 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Challenges & XP</span>
-                  <span className="sm:hidden">Challenges</span>
+                <TabsTrigger value="gamification" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Challenges & XP
                 </TabsTrigger>
               </TabsList>
 
@@ -312,9 +310,9 @@ const Home = () => {
 
               {/* Featured Quest */}
               <div>
-                <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3">
-                  <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg">
-                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-primary" />
                   </div>
                   Featured Quest
                 </h2>

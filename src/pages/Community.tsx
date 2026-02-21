@@ -493,9 +493,9 @@ const Community = () => {
       <main className="container mx-auto max-w-2xl px-4 py-8">
         <div className="space-y-6">
           {/* Header */}
-          <div className="text-center mb-8 md:mb-12">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-3 md:mb-4 px-4">Adventure Crew</h1>
-            <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">Share achievements, get help, and connect with fellow adventurers</p>
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent mb-4">Adventure Crew</h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Share achievements, get help, and connect with fellow adventurers</p>
           </div>
 
           {/* Action Bar - Removed, filter button moved to bottom right */}
@@ -503,8 +503,8 @@ const Community = () => {
           {/* Filters Panel */}
           {showFilters && (
             <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-lg">
-              <CardContent className="p-3 md:p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <Input 
                     placeholder="Filter by tag..." 
                     value={tagFilter} 
@@ -534,7 +534,7 @@ const Community = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="mt-2 w-full sm:w-auto" 
+                  className="mt-2" 
                   onClick={() => { 
                     setTagFilter(""); 
                     setTypeFilter("all"); 

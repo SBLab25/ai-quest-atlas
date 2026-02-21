@@ -60,14 +60,14 @@ const QuestMapPage = () => {
 
       <main className="container mx-auto px-6 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-6 md:mb-8">
-          <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <MapIcon className="h-8 w-8 md:h-10 md:w-10 text-primary" />
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <MapIcon className="h-10 w-10 text-primary" />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
               Quest Map
             </h1>
           </div>
-          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Discover {questCounts.filtered} exciting quests near you. Use filters to find your perfect
             adventure.
           </p>

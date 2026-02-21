@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 const SUPABASE_URL = 'https://afglpoufxxgdxylvgeex.supabase.co';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -60,8 +60,8 @@ serve(async (req) => {
     const existingTitles = existingSuggestions?.map(q => q.title) || [];
     const completedQuestTypes = recentSubmissions?.map(s => (s.Quests as any)?.quest_type).filter(Boolean) || [];
     
-    // Generate personalized suggestions using Lovable AI
-    const suggestions = await generateSuggestionsWithAI({
+    // Generate personalized suggestions using Gemini
+    const suggestions = await generateSuggestionsWithGemini({
       interests: profile.interests || [],
       location: profile.location || 'unknown',
       latitude: profile.latitude,
@@ -113,7 +113,7 @@ serve(async (req) => {
   }
 });
 
-async function generateSuggestionsWithAI(context: {
+async function generateSuggestionsWithGemini(context: {
   interests: string[];
   location: string;
   latitude: number | null;
@@ -121,8 +121,8 @@ async function generateSuggestionsWithAI(context: {
   recentQuestTypes: string[];
   existingTitles: string[];
 }) {
-  if (!LOVABLE_API_KEY) {
-    throw new Error('LOVABLE_API_KEY not configured');
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY not configured');
   }
 
   const prompt = `Generate 5 personalized quest suggestions for a user with the following profile:
@@ -155,45 +155,42 @@ Respond with ONLY a valid JSON array in this exact format:
 
   try {
     const response = await fetch(
-      'https://ai.gateway.lovable.dev/v1/chat/completions',
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a quest generator AI that creates engaging, location-specific quests for users. Always respond with valid JSON arrays only.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.9,
-          max_tokens: 2000,
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2000,
+          }
         })
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Lovable AI error:', errorText);
-      throw new Error(`AI API error: ${response.status} - ${errorText}`);
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      console.error('Invalid AI response:', data);
-      throw new Error('Invalid response from AI API');
+    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      console.error('Invalid Gemini response:', data);
+      throw new Error('Invalid response from Gemini API');
     }
 
-    const generatedText = data.choices[0].message.content.trim();
+    const generatedText = data.candidates[0].content.parts[0].text.trim();
     
     // Parse JSON response
     let suggestions;
@@ -202,19 +199,19 @@ Respond with ONLY a valid JSON array in this exact format:
       const jsonString = jsonMatch ? jsonMatch[1] : generatedText;
       suggestions = JSON.parse(jsonString);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', generatedText);
-      throw new Error('Failed to parse AI response as JSON');
+      console.error('Failed to parse Gemini response:', generatedText);
+      throw new Error('Failed to parse AI response');
     }
 
     // Validate suggestions
     if (!Array.isArray(suggestions) || suggestions.length === 0) {
-      throw new Error('Invalid suggestions format - expected non-empty array');
+      throw new Error('Invalid suggestions format');
     }
 
     return suggestions;
 
   } catch (error) {
-    console.error('Error calling Lovable AI Gateway:', error);
+    console.error('Error calling Gemini API:', error);
     throw error;
   }
 }

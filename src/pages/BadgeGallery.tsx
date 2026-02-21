@@ -207,16 +207,16 @@ const BadgeGallery = () => {
       
       <main className="container mx-auto px-6 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-8 md:mb-12">
-          <div className="inline-flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <div className="p-2 md:p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-2xl">
-              <Trophy className="w-8 h-8 md:w-10 md:h-10 text-yellow-600" />
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-2xl">
+              <Trophy className="w-10 h-10 text-yellow-600" />
             </div>
           </div>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-600 bg-clip-text text-transparent mb-3 md:mb-4 px-4">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-600 bg-clip-text text-transparent mb-4">
             Treasure Vault
           </h1>
-          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Your collection of badges, achievements, and points earned throughout your journey
           </p>
         </div>
@@ -331,29 +331,29 @@ const BadgeGallery = () => {
         </div>
 
         {/* Points Breakdown */}
-        <Card className="mb-8 md:mb-12 border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-yellow-500/10">
-          <CardHeader className="p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <Card className="mb-12 border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-yellow-500/10">
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                  <Coins className="h-4 w-4 md:h-5 md:w-5 text-yellow-500" />
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-yellow-500" />
                   Points Breakdown
                 </CardTitle>
-                <CardDescription className="text-sm">How you've earned your points</CardDescription>
+                <CardDescription>How you've earned your points</CardDescription>
               </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
               <Button 
                 onClick={handleRecalculatePoints} 
                 variant="outline" 
                 size="sm"
                 disabled={pointsLoading}
-                className="flex items-center gap-2 flex-1 sm:flex-initial"
+                className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${pointsLoading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Recalculate</span>
+                Recalculate
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setCalendarOpen(v => !v)} title="Points calendar">
-                <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
+                <CalendarIcon className="h-5 w-5" />
               </Button>
               </div>
             </div>

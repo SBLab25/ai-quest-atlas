@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,10 +7,6 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ActivePowerUpBar } from "@/components/gamification/ActivePowerUpBar";
 import { PageLoader } from "@/components/ui/PageLoader";
 import { LottieLoading } from "@/components/ui/LottieLoading";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
-import { UpdateNotification } from "@/components/pwa/UpdateNotification";
-import { useOfflineStorage } from "@/hooks/useOfflineStorage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -27,7 +23,6 @@ import Community from "./pages/Community";
 import PostDetail from "./pages/PostDetail";
 import MobileTest from "./pages/MobileTest";
 import Admin from "./pages/Admin";
-import Offline from "./pages/Offline";
 
 
 const queryClient = new QueryClient();
@@ -70,57 +65,36 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AppContent = () => {
-  const { isReady, clearOldCache } = useOfflineStorage();
-
-  useEffect(() => {
-    if (isReady && clearOldCache) {
-      // Clear old cached data on app load
-      clearOldCache();
-    }
-  }, [isReady, clearOldCache]);
-
-  return (
-    <>
-      <PageLoader delay={200} minDisplayTime={600} />
-      <ActivePowerUpBar />
-      <InstallPrompt />
-      <OfflineIndicator />
-      <UpdateNotification />
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
-        <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        <Route path="/all-quests" element={<ProtectedRoute><AllQuests /></ProtectedRoute>} />
-        <Route path="/quest/:id" element={<ProtectedRoute><QuestDetail /></ProtectedRoute>} />
-        <Route path="/submit/:id" element={<ProtectedRoute><SubmitQuest /></ProtectedRoute>} />
-        <Route path="/badges" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
-        <Route path="/treasure" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/profile/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-        <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
-        <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
-        <Route path="/post/:postId" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
-        <Route path="/quest-map" element={<ProtectedRoute><QuestMapPage /></ProtectedRoute>} />
-        <Route path="/mobile-test" element={<MobileTest />} />
-        <Route path="/offline" element={<Offline />} />
-        {/* Redirect old dashboard route to home */}
-        <Route path="/dashboard" element={<Navigate to="/home" replace />} />
-        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </>
-  );
-};
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <Toaster />
     <Sonner />
     <BrowserRouter>
       <AuthProvider>
-        <AppContent />
+        <PageLoader delay={200} minDisplayTime={600} />
+        <ActivePowerUpBar />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+          <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/all-quests" element={<ProtectedRoute><AllQuests /></ProtectedRoute>} />
+          <Route path="/quest/:id" element={<ProtectedRoute><QuestDetail /></ProtectedRoute>} />
+          <Route path="/submit/:id" element={<ProtectedRoute><SubmitQuest /></ProtectedRoute>} />
+          <Route path="/badges" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
+          <Route path="/treasure" element={<ProtectedRoute><BadgeGallery /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/profile/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+          <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+          <Route path="/post/:postId" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
+          <Route path="/quest-map" element={<ProtectedRoute><QuestMapPage /></ProtectedRoute>} />
+          <Route path="/mobile-test" element={<MobileTest />} />
+          {/* Redirect old dashboard route to home */}
+          <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>

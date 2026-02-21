@@ -286,10 +286,10 @@ const QuestDetail = () => {
 
         {/* Quest Card */}
         <Card className="mb-6">
-          <CardHeader className="p-4 md:p-6">
+          <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2">
                   <Badge className={getQuestTypeColor(quest.quest_type)}>
                     {quest.quest_type}
                   </Badge>
@@ -297,7 +297,7 @@ const QuestDetail = () => {
                     {getDifficultyStars(quest.difficulty)}
                   </div>
                 </div>
-                <CardTitle className="text-xl md:text-2xl lg:text-3xl font-bold mb-2">
+                <CardTitle className="text-3xl font-bold mb-2">
                   {quest.title}
                 </CardTitle>
               </div>
@@ -321,12 +321,12 @@ const QuestDetail = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+            <div className="flex gap-4">
               {user ? (
                 <>
                   {hasSubmitted ? (
-                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                      <Button disabled variant="secondary" className="w-full sm:w-auto">
+                    <div className="flex gap-2">
+                      <Button disabled variant="secondary">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Already Submitted
                       </Button>
@@ -386,7 +386,6 @@ const QuestDetail = () => {
                   ) : (
                     <Button
                       onClick={() => navigate(`/submit/${quest.id}`)}
-                      className="w-full sm:w-auto"
                     >
                       Submit Your Quest
                     </Button>
@@ -394,7 +393,6 @@ const QuestDetail = () => {
                   <Button
                     variant="outline"
                     onClick={() => navigate("/home")}
-                    className="w-full sm:w-auto"
                   >
                     View All Quests
                   </Button>

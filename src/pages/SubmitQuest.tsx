@@ -369,8 +369,7 @@ const SubmitQuest = () => {
               description: "Your submission has been received and is being processed.",
             });
           } else {
-            const verificationRecord = verification as any;
-            console.log('✅ Verification record created:', verificationRecord.id);
+            console.log('✅ Verification record created:', verification.id);
 
             // Trigger deepfake detection and Groq analysis in parallel
             const triggerVerification = async () => {
@@ -379,13 +378,13 @@ const SubmitQuest = () => {
                 const [deepfakeResult, groqResult] = await Promise.allSettled([
                   supabase.functions.invoke('deepfake-detection', {
                     body: {
-                      verificationId: verificationRecord.id,
+                      verificationId: verification.id,
                       photoUrl: photoUrl,
                     },
                   }),
                   supabase.functions.invoke('groq-analysis', {
                     body: {
-                      verificationId: verificationRecord.id,
+                      verificationId: verification.id,
                       photoUrl: photoUrl,
                     },
                   }),
@@ -425,16 +424,14 @@ const SubmitQuest = () => {
                   // Try querying the database with retries
                   let retries = 3;
                   while (retries > 0 && !deepfakeVerdict) {
-                    const verificationRecord = verification as any;
                     const { data: verificationData, error: fetchError } = await supabase
-                      .from('ai_verifications')
+                      .from('ai_verifications' as any)
                       .select('deepfake_verdict')
-                      .eq('id', verificationRecord.id)
+                      .eq('id', verification.id)
                       .single();
 
-                    const result = verificationData as { deepfake_verdict?: string } | null;
-                    if (!fetchError && result && result.deepfake_verdict) {
-                      deepfakeVerdict = result.deepfake_verdict as 'REAL' | 'FAKE';
+                    if (!fetchError && verificationData && verificationData.deepfake_verdict) {
+                      deepfakeVerdict = verificationData.deepfake_verdict as 'REAL' | 'FAKE';
                       console.log('🔍 Deepfake verdict from database:', deepfakeVerdict);
                       break;
                     } else {
@@ -623,11 +620,11 @@ const SubmitQuest = () => {
 
         {/* Quest Context */}
         <Card className="mb-6">
-          <CardHeader className="p-4 md:p-6">
-            <CardTitle className="text-lg md:text-xl">
+          <CardHeader>
+            <CardTitle className="text-xl">
               Submitting for: {quest.title}
             </CardTitle>
-            <CardDescription className="text-sm md:text-base">
+            <CardDescription>
               {quest.description}
             </CardDescription>
           </CardHeader>
@@ -635,12 +632,12 @@ const SubmitQuest = () => {
 
         {/* Submission Form */}
         <Card>
-          <CardHeader className="p-4 md:p-6">
-            <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-              <Camera className="h-4 w-4 md:h-5 md:w-5" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Camera className="h-5 w-5" />
               Submit Your Quest
             </CardTitle>
-            <CardDescription className="text-sm md:text-base">
+            <CardDescription>
               Share your experience and proof of completion
             </CardDescription>
           </CardHeader>
@@ -734,22 +731,20 @@ const SubmitQuest = () => {
               {/* Location */}
               <div>
                 <Label htmlFor="location">Location (Optional)</Label>
-                <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                <div className="flex gap-2 mt-1">
                   <Input
                     id="location"
                     placeholder="Enter location or coordinates"
                     value={geoLocation}
                     onChange={(e) => setGeoLocation(e.target.value)}
-                    className="flex-1"
                   />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={getCurrentLocation}
-                    className="shrink-0 w-full sm:w-auto"
+                    className="shrink-0"
                   >
-                    <MapPin className="h-4 w-4 mr-2 sm:mr-0" />
-                    <span className="sm:hidden">Detect Location</span>
+                    <MapPin className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

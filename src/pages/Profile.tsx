@@ -346,7 +346,7 @@ const Profile = () => {
     }
   };
 
-  const handleLocationSelect = async (locationData: { latitude: number; longitude: number; address?: string; accuracy?: number }) => {
+  const handleLocationSelect = (locationData: { latitude: number; longitude: number; address?: string; accuracy?: number }) => {
     // Update form data
     setFormData({
       ...formData,
@@ -354,30 +354,30 @@ const Profile = () => {
     });
 
     // Save to database
-    try {
-      await supabase
-        .from('profiles')
-        .update({
-          location: locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
-          latitude: locationData.latitude,
-          longitude: locationData.longitude,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user?.id);
-      
-      fetchProfile();
-      toast({
-        title: "Location updated",
-        description: "Your location has been saved successfully."
+    supabase
+      .from('profiles')
+      .update({
+        location: locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user?.id)
+      .then(() => {
+        fetchProfile();
+        toast({
+          title: "Location updated",
+          description: "Your location has been saved successfully."
+        });
+      })
+      .catch((error) => {
+        console.error('Database error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save location. Please try again.",
+          variant: "destructive"
+        });
       });
-    } catch (error) {
-      console.error('Database error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save location. Please try again.",
-        variant: "destructive"
-      });
-    }
   };
 
   // Improved reverse geocoding with multiple services
@@ -484,9 +484,9 @@ const Profile = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10 p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-6 md:mb-8 rounded-b-xl shadow-sm">
-          <div className="container mx-auto px-4 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-8 rounded-b-xl shadow-sm">
+          <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -494,17 +494,16 @@ const Profile = () => {
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Back to Home</span>
-                <span className="sm:hidden">Back</span>
+                Back to Home
               </Button>
               <div>
-                <h1 className="text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                   Profile
                 </h1>
-                <p className="text-xs md:text-sm text-muted-foreground">Manage your account & showcase your adventures</p>
+                <p className="text-sm text-muted-foreground">Manage your account & showcase your adventures</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-4">
               <ThemeToggleButton />
               <NotificationCenter />
               <StreakDisplay />
@@ -517,8 +516,8 @@ const Profile = () => {
           {/* Profile Header */}
           <div className="lg:col-span-4">
             <Card className="overflow-hidden bg-gradient-to-r from-card via-card to-secondary/5 border-0 shadow-lg">
-              <CardContent className="p-4 md:p-6 lg:p-8">
-                <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
+              <CardContent className="p-8">
+                <div className="flex flex-col md:flex-row items-center gap-6">
                   {/* Profile Image */}
                   <div className="relative group">
                     <ProfileImageUpload
@@ -903,9 +902,9 @@ const Profile = () => {
         isOpen={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onLocationSelect={handleLocationSelect}
-        currentLocation={(profile as any)?.latitude && (profile as any)?.longitude ? {
-          latitude: (profile as any).latitude,
-          longitude: (profile as any).longitude,
+        currentLocation={profile?.latitude && profile?.longitude ? {
+          latitude: profile.latitude,
+          longitude: profile.longitude,
           address: profile.location
         } : undefined}
       />
