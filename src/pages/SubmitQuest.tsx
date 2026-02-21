@@ -369,7 +369,8 @@ const SubmitQuest = () => {
               description: "Your submission has been received and is being processed.",
             });
           } else {
-            console.log('✅ Verification record created:', verification.id);
+            const verificationAny = verification as any;
+            console.log('✅ Verification record created:', verificationAny.id);
 
             // Trigger deepfake detection and Groq analysis in parallel
             const triggerVerification = async () => {
@@ -378,13 +379,13 @@ const SubmitQuest = () => {
                 const [deepfakeResult, groqResult] = await Promise.allSettled([
                   supabase.functions.invoke('deepfake-detection', {
                     body: {
-                      verificationId: verification.id,
+                      verificationId: verificationAny.id,
                       photoUrl: photoUrl,
                     },
                   }),
                   supabase.functions.invoke('groq-analysis', {
                     body: {
-                      verificationId: verification.id,
+                      verificationId: verificationAny.id,
                       photoUrl: photoUrl,
                     },
                   }),
@@ -427,11 +428,12 @@ const SubmitQuest = () => {
                     const { data: verificationData, error: fetchError } = await supabase
                       .from('ai_verifications' as any)
                       .select('deepfake_verdict')
-                      .eq('id', verification.id)
+                      .eq('id', verificationAny.id)
                       .single();
 
-                    if (!fetchError && verificationData && verificationData.deepfake_verdict) {
-                      deepfakeVerdict = verificationData.deepfake_verdict as 'REAL' | 'FAKE';
+                    const vDataAny = verificationData as any;
+                    if (!fetchError && vDataAny && vDataAny.deepfake_verdict) {
+                      deepfakeVerdict = vDataAny.deepfake_verdict as 'REAL' | 'FAKE';
                       console.log('🔍 Deepfake verdict from database:', deepfakeVerdict);
                       break;
                     } else {

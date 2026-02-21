@@ -124,9 +124,9 @@ export const useQuestMap = () => {
           let longitude: number | undefined;
 
           // First, check if quest already has coordinates in database
-          if (quest.latitude && quest.longitude) {
-            latitude = quest.latitude;
-            longitude = quest.longitude;
+          if ((quest as any).latitude && (quest as any).longitude) {
+            latitude = (quest as any).latitude;
+            longitude = (quest as any).longitude;
           } else if (userLat && userLng) {
             // Generate quests near user's location for heat map visualization
             // Spread quests in a radius around user location (0.5km to 10km away)

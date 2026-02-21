@@ -471,12 +471,13 @@ export const AdminPanel = () => {
             p_submission_id: submissionId
           });
           
-          if (!rpcError && rpcResult?.success) {
-            console.log('✅ Submission deleted via RPC function:', rpcResult);
+          const rpcResultAny = rpcResult as any;
+          if (!rpcError && rpcResultAny?.success) {
+            console.log('✅ Submission deleted via RPC function:', rpcResultAny);
             deleteSuccess = true;
             // Use quest_id from RPC result if available
-            if (rpcResult.quest_id && !sub?.quest_id) {
-              sub = { ...sub, quest_id: rpcResult.quest_id };
+            if (rpcResultAny.quest_id && !sub?.quest_id) {
+              sub = { ...sub, quest_id: rpcResultAny.quest_id };
             }
           } else {
             console.warn('⚠️ RPC function not available or failed, trying direct delete:', rpcError);

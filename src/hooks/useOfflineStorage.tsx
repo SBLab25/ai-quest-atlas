@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+// @ts-ignore - idb installed for offline support
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 interface DiscoveryAtlasDB extends DBSchema {

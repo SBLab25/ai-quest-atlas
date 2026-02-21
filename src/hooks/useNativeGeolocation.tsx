@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+// @ts-ignore - Capacitor packages installed natively
 import { Geolocation, Position } from '@capacitor/geolocation';
+// @ts-ignore - Capacitor packages installed natively
 import { Capacitor } from '@capacitor/core';
 import { toast } from '@/hooks/use-toast';
 
